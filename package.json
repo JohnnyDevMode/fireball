@@ -1,16 +1,16 @@
 {
-  "name": "fireball",
-  "version": "0.0.1",
-  "description": "a lightweight model wrapper for DynamoDb",
+  "name": "fireball-db",
+  "version": "0.0.5",
+  "description": "a lightweight model wrapper for DynamoDB",
   "keywords": [
     "DynamoDb",
     "model"
   ],
-  "homepage": "https://github.com/JohnnyDevMode/fireball",
-  "bugs": "https://github.com/JohnnyDevMode/fireball",
+  "homepage": "https://github.com/JohnnyDevMode/fireball-db",
+  "bugs": "https://github.com/JohnnyDevMode/fireball-db",
   "repository": {
     "type": "git",
-    "url": "https://github.com/JohnnyDevMode/fireball.git"
+    "url": "https://github.com/JohnnyDevMode/fireball-db.git"
   },
   "author": "DevMode, Inc. <oss@devmode.com> (http://devmode.com)",
   "contributors": [
@@ -19,7 +19,7 @@
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/devmode/timon/blob/master/LICENSE-MIT"
+      "url": "https://github.com/JohnnyDevMode/fireball-db/blob/master/LICENSE-MIT"
     }
   ],
   "main": "lib/index.js",
@@ -29,7 +29,6 @@
   },
   "dependencies": {
     "keygen": "~0.2.0",
-    "lodash": "^3.9.3",
     "aws-sdk": "2.2.33",
     "promise": "7.1.1"
   },

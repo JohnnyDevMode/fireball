@@ -1,40 +1,21 @@
 Promise = require 'promise'
-_ = require 'lodash'
 keygen = require 'keygen'
 aws = require 'aws-sdk'
-config = require('config').aws
-
-aws.config.update
-  accessKeyId: config.access_key
-  secretAccessKey: config.secret
-aws.config.update
-  region: config.region
-  endpoint: config.endpoint
-
-doc_client = new aws.DynamoDB.DocumentClient()
 
 id_for = (it) ->
   it?.identifier ? it
 
-proxy = (method) ->
-  (params) ->
-    unless @exclude_table
-      params = _.assign TableName: @name, params
-    console.log params
-    new Promise (resolve, reject) ->
-      doc_client[method] params, (err, result) ->
-        console.log err
-        return reject(err) if err?
-        resolve result
-
 class Model
+
   constructor: (@name,  @keysize=keygen.medium) ->
+    @doc_client = new aws.DynamoDB.DocumentClient()
+
   _request: (method, params, include_table=true) ->
-    if include_table
-      params = _.assign TableName: @name, params
-    console.log params
+    params ?= {}
+    params.TableName = @name if include_table
+    self = @
     new Promise (resolve, reject) ->
-      doc_client[method] params, (err, result) ->
+      self.doc_client[method] params, (err, result) ->
         if err?
           console.log "DynamoDB Error: #{err}"
           return reject(err)
@@ -47,6 +28,7 @@ class Model
       params.ExpressionAttributeValues = condition.values
     @_request('put', params).then (result) ->
       Promise.resolve item
+
   put_all: (items) ->
     params = RequestItems: {}
     params.RequestItems[@name] = (PutRequest: Item: item for item in items)
@@ -63,7 +45,7 @@ class Model
     @_request('update', params).then (result) ->
       Promise.resolve result.Items
   get: (key, params={}) ->
-    params = _.assign params, Key: key
+    params.Key = key
     @_request('get', params).then (result) ->
       Promise.resolve result.Item
   delete: (key, params={}) ->
