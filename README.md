@@ -28,16 +28,10 @@ The model object is a wrapper around the *DocumentClient* that simplify the para
 User = fireball.model 'SomeDynamoTable'
 ```
 
-#### Creating a model as a node module (recommended)
-
-``` coffeescript
-fireball.extend module, 'SomeDynamoTable'
-```
-
 #### Creating a model with custom extensions
 
 ``` coffeescript
-User = fireball.extend module, 'SomeDynamoTable',
+User = fireball.model 'SomeDynamoTable',
 
   find_by_email: (email) ->
     ...
@@ -143,11 +137,19 @@ User.insert(key, first: 'John', last: 'Doe').then (user) ->
   ...
 ```
 
-### Deleting an item
+### Deleting an item by key
 ``` coffeescript
 User = ...
 key = email: 'test@email.com'
 User.delete(key).then (user) ->
+  ...
+```
+
+### Deleting an item
+``` coffeescript
+User = ...
+user = email: 'test@email.com', name: 'someone', ...
+User.delete(item).then (user) ->
   ...
 ```
 

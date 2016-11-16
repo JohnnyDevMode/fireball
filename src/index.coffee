@@ -1,112 +1,110 @@
 Promise = require 'promise'
 keygen = require 'keygen'
 aws = require 'aws-sdk'
+{assign} = require 'lodash'
+{map_parameters, expression_names, expression_values, key_and_params, key_for} = require './utils'
 
-id_for = (it) ->
-  it?.identifier ? it
+expression_mapping =
+  names: (key, value) ->
+    key: 'ExpressionAttributeNames'
+    value: expression_names value
+  values: (key, value) ->
+    key: 'ExpressionAttributeValues'
+    value: expression_values value
+condition_mapping = assign {}, expression_mapping, condition: 'ConditionExpression'
+update_mapping = assign {}, expression_mapping, expression: 'UpdateExpression'
+projection_mapping = assign {}, expression_mapping, projection: 'ProjectionExpression'
+filter_mapping = assign {}, expression_mapping, filter: 'FilterExpression', expression: 'FilterExpression'
+query_mapping = assign {}, filter_mapping, expression: 'KeyConditionExpression', index: 'IndexName', limit: 'Limit', forward: 'ScanIndexForward'
+scan_mapping = assign {}, filter_mapping, limit: 'Limit'
 
 class Model
 
-  constructor: (@name) ->
+  constructor: (@name, extension={}) ->
     @doc_client = new aws.DynamoDB.DocumentClient()
+    @key_size = keygen.large
+    @[prop] = value for prop, value of extension
 
   _request: (method, params, include_table=true) ->
     params ?= {}
     params.TableName = @name if include_table
-    self = @
-    new Promise (resolve, reject) ->
-      self.doc_client[method] params, (err, result) ->
-        if err?
-          console.log "DynamoDB Error: #{err}"
-          return reject(err)
+    new Promise (resolve, reject) =>
+      @doc_client[method] params, (err, result) ->
+        return reject(err) if err?
         resolve result
 
-  put: (item, condition) ->
-    params = Item: item
-    if condition?
-      params.ConditionExpression = condition.expression
-      params.ExpressionAttributeNames = condition.names
-      params.ExpressionAttributeValues = condition.values
+  put: (item, params={}) ->
+    params = map_parameters params, condition_mapping
+    params.Item = item
     @_request('put', params).then (result) ->
-      Promise.resolve item
+      item
 
   put_all: (items) ->
     params = RequestItems: {}
     params.RequestItems[@name] = (PutRequest: Item: item for item in items)
-    self = @
     @_request('batchWrite', params, false).then (results) ->
-      Promise.resolve items
+      items
 
-  insert: (item) ->
+  insert: (item, params={}) ->
     item.identifier = keygen.url @key_size unless item.identifier?
-    @put item, expression: 'identifier <> :id', values: ':id': item.identifier
+    params.condition = 'identifier <> :identifier'
+    params.values =  ':identifier': item.identifier
+    @put item, params
 
-  update: (key, update) ->
-    params = Key: key, UpdateExpression: update.expression
-    params.ExpressionAttributeNames = update.names
-    params.ExpressionAttributeValues = update.values
+  update: (keys..., params) ->
+    params = @_keyed_params keys, params, update_mapping
+    params.ReturnValues ?=  'ALL_NEW'
     @_request('update', params).then (result) ->
-      Promise.resolve result.Items
+      result.Attributes
 
-  get: (thing, params={}) ->
-    params.Key = @key_for thing
+  get: (keys..., params) ->
+    params = @_keyed_params keys, params, projection_mapping
+    # console.log params
     @_request('get', params).then (result) ->
-      Promise.resolve result.Item
+      result?.Item
 
-  delete: (thing, params={}) ->
-    params = Key: @key_for thing
+  delete: (keys..., params) ->
+    params = @_keyed_params keys, params, condition_mapping
     @_request('delete', params).then (result) ->
-      Promise.resolve result.Item
+      result
 
-  query: (params) ->
-    self = @
-    params.KeyConditionExpression ?= params.expression
-    params.ExpressionAttributeNames ?= params.names
-    params.ExpressionAttributeValues ?= params.values
+  query: (params={}) ->
+    params = map_parameters params, query_mapping
     @_request('query', params).then (result) ->
-      Promise.resolve result.Items
+      result?.Items or []
+
+  query_single: (params={}) ->
+    @query(params).then (result) ->
+      result[0]
 
   scan: (params={}) ->
-    self = @
-    params.FilterExpression ?= params.expression
-    params.ExpressionAttributeNames ?= params.names
-    params.ExpressionAttributeValues ?= params.values
+    params = map_parameters params, scan_mapping
     @_request('scan', params).then (result) ->
-      Promise.resolve result.Items
+      result.Items
 
   for_keys: (keys) ->
     params = RequestItems: {}
-    params.RequestItems[@name] = Keys: keys
-    self = @
-    @_request('batchGet', params, false).then (results) ->
-      Promise.resolve results.Responses[self.name]
+    params.RequestItems[@name] = Keys: (@_key_for key for key in keys)
+    @_request('batchGet', params, false).then (results) =>
+      results.Responses[@name]
 
-  for_id: (id) ->
-    @get identifier: id
-
-  for_ids: (ids) ->
-    @for_keys (identifier: id for id in ids)
-
-  key_for: (item) ->
-    key = {}
-    key[@hash_key] = item[@hash_key]
-    key[@range_key] = item[@range_key] if @range_key?
-    key
+  _key_for: (key) -> key_for key, @hash_key, @range_key
 
   hash_key: 'identifier'
 
   range_key: undefined
 
-  id_for: id_for
+  _keyed_params: (keys, params, mapping) ->
+    [key, params] = key_and_params keys, params
+    params = map_parameters params, mapping
+    params.Key = @_key_for key
+    params
 
-  @model: (name) ->
-    new @ name
+  @model: (name, extension={}) ->
+    new @ name, extension
 
   @extend: (module, name, extension={}) ->
-    Type = class extends @
-    Type::[prop] = value for prop, value of extension
-    model = new Type name
-    module.exports = model
+    module.exports = @model name, extension
 
   @update_builder: (item) ->
     set_exp = 'set '
@@ -118,9 +116,5 @@ class Model
       names["##{name}"] = name
       values[":#{name}"] = value
     {expression: "#{set_exp} #{parts.join(', ')}", names, values}
-
-  @id_for: id_for
-
-# Model::[name] = proxy name for name in ['scan']
 
 module.exports = Model
