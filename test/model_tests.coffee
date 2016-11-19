@@ -140,6 +140,25 @@ describe 'Model Tests', ->
           .then -> done()
           .catch done
 
+      it 'should add identifier', (done) ->
+        item = foo: 'bar', baz: 'quk'
+        model._request = (method, params) ->
+          params.Item.should.have.property 'identifier'
+          Promise.resolve()
+        model.put(item)
+          .then -> done()
+          .catch done
+
+      it 'should not add identifier for other hash_key', (done) ->
+        item = foo: 'bar', baz: 'quk'
+        model.hash_key = 'not_identifier'
+        model._request = (method, params) ->
+          params.Item.should.not.have.property 'identifier'
+          Promise.resolve()
+        model.put(item)
+          .then -> done()
+          .catch done
+
       it 'should propagate error', (done) ->
         item = identifier: '12312', foo: 'bar', baz: 'quk'
         model._request = (method, params) ->
@@ -286,24 +305,6 @@ describe 'Model Tests', ->
               done()
 
     describe '.insert', ->
-
-      it 'should proxy to insert and generate identifier', (done) ->
-        item = foo: 'bar', baz: 'qak'
-        model.put = (item) ->
-          item.identifier.should.not.be.null
-          Promise.resolve(item)
-        model.insert(item)
-          .then -> done()
-          .catch done
-
-      it 'should keep provided identifer', (done) ->
-        item = identifier: '123456', foo: 'bar', baz: 'qak'
-        model.put = (item) ->
-          item.identifier.should.eql '123456'
-          Promise.resolve(item)
-        model.insert(item)
-          .then -> done()
-          .catch done
 
       it 'should proxy to put and create condition', (done) ->
         item = foo: 'bar', baz: 'qak'

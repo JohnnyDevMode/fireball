@@ -1,7 +1,7 @@
 Promise = require 'promise'
 keygen = require 'keygen'
 aws = require 'aws-sdk'
-{assign, isArray} = require 'lodash'
+{assign, isArray, map} = require 'lodash'
 {map_parameters, expression_names, expression_values, key_and_params, key_for} = require './utils'
 
 expression_mapping =
@@ -27,20 +27,26 @@ class Model
 
   put: (item, params={}) ->
     item = assign {}, item
+    @_apply_timestamps item
+    @_apply_identifier item
     params = map_parameters params, condition_mapping
-    params.Item = @_apply_timestamps(item)
+    params.Item = item
     @_request('put', params).then (result) ->
       item
 
   put_all: (items) ->
     params = RequestItems: {}
-    items = (assign({}, item) for item in items)
-    params.RequestItems[@name] = (PutRequest: Item: item for item in @_apply_timestamps(items))
+    items = map items, (item) =>
+      item = assign {}, item
+      @_apply_timestamps item
+      @_apply_identifier item
+    params.RequestItems[@name] = (PutRequest: Item: item for item in items)
     @_request('batchWrite', params, false).then (results) ->
       items
 
   insert: (item, params={}) ->
-    item.identifier = keygen.url @key_size unless item.identifier?
+    item = assign {}, item
+    @_apply_identifier item
     params.condition = 'identifier <> :identifier'
     params.values =  ':identifier': item.identifier
     @put item, params
@@ -97,14 +103,17 @@ class Model
 
   _key_for: (key) -> key_for key, @hash_key, @range_key
 
-  _apply_timestamps: (items) ->
-    return items unless @auto_timestamps
-    apply_single = (item)->
-      now = new Date()
-      item.created_at = now unless item.created_at?
-      item.updated_at = now
-      item
-    if isArray items then (apply_single item for item in items) else apply_single items
+  _apply_timestamps: (item) ->
+    return item unless @auto_timestamps
+    now = new Date()
+    item.created_at = now unless item.created_at?
+    item.updated_at = now
+    item
+
+  _apply_identifier: (item) ->
+    return item unless @hash_key == 'identifier'
+    item.identifier = keygen.url @key_size unless item.identifier?
+    item
 
   _keyed_params: (keys, params, mapping) ->
     [key, params] = key_and_params keys, params
