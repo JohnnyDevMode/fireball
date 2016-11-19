@@ -18,6 +18,18 @@ filter_mapping = assign {}, expression_mapping, filter: 'FilterExpression', expr
 query_mapping = assign {}, filter_mapping, expression: 'KeyConditionExpression', index: 'IndexName', limit: 'Limit', forward: 'ScanIndexForward'
 scan_mapping = assign {}, filter_mapping, limit: 'Limit'
 
+_apply_timestamps = (item) ->
+  now = new Date()
+  item.created_at = now unless item.created_at?
+  item.updated_at = now
+  item
+
+_apply_identifier = (item) ->
+  item.identifier = keygen.url @key_size unless item.identifier?
+  item
+
+
+
 class Model
 
   constructor: (@name, extension={}) ->
@@ -27,8 +39,8 @@ class Model
 
   put: (item, params={}) ->
     item = assign {}, item
-    @_apply_timestamps item
-    @_apply_identifier item
+    _apply_timestamps item if @auto_timestamps
+    _apply_identifier item if @hash_key == 'identifier'
     params = map_parameters params, condition_mapping
     params.Item = item
     @_request('put', params).then (result) ->
@@ -38,15 +50,15 @@ class Model
     params = RequestItems: {}
     items = map items, (item) =>
       item = assign {}, item
-      @_apply_timestamps item
-      @_apply_identifier item
+      _apply_timestamps item if @auto_timestamps
+      _apply_identifier item if @hash_key == 'identifier'
     params.RequestItems[@name] = (PutRequest: Item: item for item in items)
     @_request('batchWrite', params, false).then (results) ->
       items
 
   insert: (item, params={}) ->
     item = assign {}, item
-    @_apply_identifier item
+    _apply_identifier item
     params.condition = 'identifier <> :identifier'
     params.values =  ':identifier': item.identifier
     @put item, params
@@ -102,18 +114,6 @@ class Model
         resolve result
 
   _key_for: (key) -> key_for key, @hash_key, @range_key
-
-  _apply_timestamps: (item) ->
-    return item unless @auto_timestamps
-    now = new Date()
-    item.created_at = now unless item.created_at?
-    item.updated_at = now
-    item
-
-  _apply_identifier: (item) ->
-    return item unless @hash_key == 'identifier'
-    item.identifier = keygen.url @key_size unless item.identifier?
-    item
 
   _keyed_params: (keys, params, mapping) ->
     [key, params] = key_and_params keys, params
