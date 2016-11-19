@@ -1,5 +1,6 @@
 Model = require '../src'
 keygen = require 'keygen'
+{omit} = require 'lodash'
 
 describe 'Model Tests', ->
 
@@ -97,7 +98,7 @@ describe 'Model Tests', ->
         model._request = (method, params) ->
           method.should.eql 'put'
           params.should.have.property 'Item'
-          params.Item.should.eql item
+          omit(params.Item, 'created_at', 'updated_at').should.eql item
           Promise.resolve()
         model.put(item)
           .then -> done()
@@ -171,6 +172,38 @@ describe 'Model Tests', ->
               err.should.not.be.null
               done()
 
+      describe 'auto_timestamps', ->
+
+        it 'should apply timestaps if true', (done) ->
+            item = identifier: '12312', foo: 'bar', baz: 'qak'
+            model.auto_timestamps = true
+            model.put(item).then (item) ->
+              item.should.have.property 'created_at'
+              item.should.have.property 'updated_at'
+              done()
+
+        it 'should not apply timestaps if false', (done) ->
+            item = identifier: '12312', foo: 'bar', baz: 'qak'
+            model.auto_timestamps = false
+            model.put(item).then (item) ->
+              item.should.not.have.property 'created_at'
+              item.should.not.have.property 'updated_at'
+              done()
+
+        it 'should not override created_at at', (done) ->
+            item = identifier: '12312', foo: 'bar', baz: 'qak', created_at: new Date()
+            model.auto_timestamps = true
+            model.put(item).then (after) ->
+              after.created_at.should.eql item.created_at
+              done()
+
+        it 'should override updated_at ', (done) ->
+            item = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+            model.auto_timestamps = true
+            model.put(item).then (after) ->
+              after.updated_at.should.not.eql item.updated_at
+              done()
+
     describe '.put_all', ->
 
       it 'should proxy put and create params', (done) ->
@@ -181,8 +214,8 @@ describe 'Model Tests', ->
           params.should.have.property 'RequestItems'
           params.RequestItems.should.have.property 'table_one'
           params.RequestItems.table_one.length.should.eql 2
-          params.RequestItems.table_one[0].PutRequest.Item.should.eql item1
-          params.RequestItems.table_one[1].PutRequest.Item.should.eql item2
+          omit(params.RequestItems.table_one[0].PutRequest.Item, 'created_at', 'updated_at').should.eql item1
+          omit(params.RequestItems.table_one[1].PutRequest.Item, 'created_at', 'updated_at').should.eql item2
           include_table.should.eql false
           Promise.resolve()
         model.put_all([item1, item2])
@@ -209,6 +242,48 @@ describe 'Model Tests', ->
           .catch (error) ->
             error.should.eql 'some error'
             done()
+
+      describe 'auto_timestamps', ->
+
+        it 'should apply timestaps if true', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak'
+            model.auto_timestamps = true
+            model.put_all([item1, item2]).then (items) ->
+              items[0].should.have.property 'created_at'
+              items[0].should.have.property 'updated_at'
+              items[1].should.have.property 'created_at'
+              items[1].should.have.property 'updated_at'
+              done()
+
+        it 'should not apply timestaps if false', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak'
+            model.auto_timestamps = false
+            model.put_all([item1, item2]).then (items) ->
+              items[0].should.not.have.property 'created_at'
+              items[0].should.not.have.property 'updated_at'
+              items[1].should.not.have.property 'created_at'
+              items[1].should.not.have.property 'updated_at'
+              done()
+
+        it 'should not override created_at at', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak', created_at: new Date()
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak', created_at: new Date()
+            model.auto_timestamps = true
+            model.put_all([item1, item2]).then (items) ->
+              items[0].created_at.should.eql item1.created_at
+              items[1].created_at.should.eql item2.created_at
+              done()
+
+        it 'should override updated_at ', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date()
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak', updated_at: new Date()
+            model.auto_timestamps = true
+            model.put_all([item1, item2]).then (items) ->
+              items[0].updated_at.should.eql item1.updated_at
+              items[1].updated_at.should.eql item2.updated_at
+              done()
 
     describe '.insert', ->
 
@@ -259,7 +334,6 @@ describe 'Model Tests', ->
             item.should.not.be.null
             model.scan().then (items) ->
               items.length.should.eql 1
-              items[0].should.eql item
               done()
           .catch done
 

@@ -1,7 +1,7 @@
 Promise = require 'promise'
 keygen = require 'keygen'
 aws = require 'aws-sdk'
-{assign} = require 'lodash'
+{assign, isArray} = require 'lodash'
 {map_parameters, expression_names, expression_values, key_and_params, key_for} = require './utils'
 
 expression_mapping =
@@ -25,23 +25,17 @@ class Model
     @key_size = keygen.large
     @[prop] = value for prop, value of extension
 
-  _request: (method, params, include_table=true) ->
-    params ?= {}
-    params.TableName = @name if include_table
-    new Promise (resolve, reject) =>
-      @doc_client[method] params, (err, result) ->
-        return reject(err) if err?
-        resolve result
-
   put: (item, params={}) ->
+    item = assign {}, item
     params = map_parameters params, condition_mapping
-    params.Item = item
+    params.Item = @_apply_timestamps(item)
     @_request('put', params).then (result) ->
       item
 
   put_all: (items) ->
     params = RequestItems: {}
-    params.RequestItems[@name] = (PutRequest: Item: item for item in items)
+    items = (assign({}, item) for item in items)
+    params.RequestItems[@name] = (PutRequest: Item: item for item in @_apply_timestamps(items))
     @_request('batchWrite', params, false).then (results) ->
       items
 
@@ -59,7 +53,6 @@ class Model
 
   get: (keys..., params) ->
     params = @_keyed_params keys, params, projection_mapping
-    # console.log params
     @_request('get', params).then (result) ->
       result?.Item
 
@@ -88,11 +81,30 @@ class Model
     @_request('batchGet', params, false).then (results) =>
       results.Responses[@name]
 
-  _key_for: (key) -> key_for key, @hash_key, @range_key
-
   hash_key: 'identifier'
 
   range_key: undefined
+
+  auto_timestamps: true
+
+  _request: (method, params, include_table=true) ->
+    params ?= {}
+    params.TableName = @name if include_table
+    new Promise (resolve, reject) =>
+      @doc_client[method] params, (err, result) ->
+        return reject(err) if err?
+        resolve result
+
+  _key_for: (key) -> key_for key, @hash_key, @range_key
+
+  _apply_timestamps: (items) ->
+    return items unless @auto_timestamps
+    apply_single = (item)->
+      now = new Date()
+      item.created_at = now unless item.created_at?
+      item.updated_at = now
+      item
+    if isArray items then (apply_single item for item in items) else apply_single items
 
   _keyed_params: (keys, params, mapping) ->
     [key, params] = key_and_params keys, params
