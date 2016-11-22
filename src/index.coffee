@@ -27,13 +27,10 @@ apply_timestamps = (item) ->
   item.created_at = now unless item.created_at?
   item.updated_at = now
   item
-
 apply_identifier = (item) ->
   item.identifier = keygen.url @key_size if @hash_key == 'identifier' and not item.identifier?
   item
-
 apply_table = (params) -> assign params, TableName: @name
-
 map_params = (mapping) -> (params) -> map_parameters params, mapping
 
 class Model
@@ -41,6 +38,9 @@ class Model
   constructor: (@name, extension={}) ->
     @doc_client = new aws.DynamoDB.DocumentClient()
     @key_size = keygen.large
+    @hash_key = 'identifier'
+    @range_key = undefined
+    @auto_timestamps = true
     @[prop] = value for prop, value of extension
 
   put: (item, params={}) ->
@@ -129,24 +129,15 @@ class Model
       .pipe (params) => @_request 'batchGet', params
       .pipe (results) => results.Responses[@name]
 
-
-  hash_key: 'identifier'
-
-  range_key: undefined
-
-  auto_timestamps: true
-
   _request: (method, params) ->
     new Promise (resolve, reject) =>
       @doc_client[method] params, (err, result) ->
         return reject(err) if err?
         resolve result
 
-  _key_for: (key) -> key_for key, @hash_key, @range_key
-
   _keyed_params: (keys, params) ->
     [key, params] = key_and_params keys, params
-    params.Key = @_key_for key
+    params.Key = key_for key, @hash_key, @range_key
     params
 
   _piped: (source) ->

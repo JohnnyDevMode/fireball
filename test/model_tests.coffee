@@ -61,37 +61,6 @@ describe 'Model Tests', ->
     beforeEach ->
       model = new Model 'table_one'
 
-    describe '.key_for', ->
-
-      it 'should extract key from item', ->
-        item = identifier: '12312', foo: 'bar', baz: 'quk'
-        key = model._key_for item
-        key.should.eql identifier: '12312'
-
-      it 'should allow hash key override', ->
-        item = identifier: '12312', foo: 'bar', baz: 'quk'
-        model = new Model 'table_one', hash_key: 'foo'
-        key = model._key_for item
-        key.should.eql foo: 'bar'
-
-      it 'should allow range key override', ->
-        item = identifier: '12312', foo: 'bar', baz: 'quk'
-        model = new Model 'table_one', range_key: 'baz'
-        key = model._key_for item
-        key.should.eql identifier: '12312', baz: 'quk'
-
-      it 'should allow hash and range key overrides', ->
-        item = identifier: '12312', foo: 'bar', baz: 'quk'
-        model = new Model 'table_one', hash_key: 'foo', range_key: 'baz'
-        key = model._key_for item
-        key.should.eql foo: 'bar', baz: 'quk'
-
-      it 'should allow raw hash values', ->
-        item = identifier: '12312', foo: 'bar', baz: 'quk'
-        model = new Model 'table_one', hash_key: 'foo'
-        key = model._key_for ['12312']
-        key.should.eql foo: '12312'
-
     describe '.put', ->
 
       it 'should proxy put and create params', (done) ->
