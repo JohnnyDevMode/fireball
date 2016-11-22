@@ -136,7 +136,7 @@ class Model
       .map @post_read_hook
 
   _request: (method, params) ->
-    new Promise (resolve, reject) =>
+    new pipeline.Promise (resolve, reject) =>
       @doc_client[method] params, (err, result) ->
         return reject(err) if err?
         resolve result

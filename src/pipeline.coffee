@@ -26,49 +26,10 @@ class Segment
 
   constructor: (@_context={}) ->
     @_state = State.Pending
-    @_fulfill_queue = []
-    @_reject_queue = []
+    @_wait_queue = []
 
   context: (@_context) ->
     @
-
-  then: (callback) ->
-    switch @_state
-      when State.Pending then @_fulfill_queue.push callback
-      when State.Fulfilled then callback @_result
-    @
-
-  catch: (callback) ->
-    switch @_state
-      when State.Pending then @_reject_queue.push callback
-      when State.Rejected then callback @_error
-    @
-
-  _fulfill: (@_result) ->
-    switch @_state
-      when State.Rejected then throw 'Pipeline segment cannot be fulfilled, already rejected'
-      when State.Fulfilled then throw 'Pipeline segment cannot be fulfilled, already fulfilled'
-    @_state = State.Fulfilled
-    for callback in @_fulfill_queue
-      do (callback) =>
-        callback(@_result)
-
-  _reject: (@_error) ->
-    throw 'Pipeline segment already rejected!' if @_state == State.Rejected
-    @_state = State.Rejected
-    callback(@_error) for callback in @_reject_queue
-
-  _pipe: (func) ->
-    segment = new FuncSegment func, @_context
-    @then (data) => segment._exec data
-    @catch (err) => segment._reject err
-    segment
-
-  _pass: ->
-    segment = new Segment @_context
-    @then (data) => segment._fulfill data
-    @catch (err) => segment._reject err
-    segment
 
   pipe: (func) ->
     if Array.isArray func
@@ -80,16 +41,20 @@ class Segment
     else
       @_pipe func
 
+  then: (fulfill, reject) ->
+    @_pipe fulfill, reject
+
+  done: (fulfill, reject) ->
+    @then fulfill, reject
+
+  catch: (reject) ->
+    @_pipe undefined, reject
+
   split: (map_func) ->
-    segment = new SplitSegment @_context
-    proceed = (resolve_context) =>
-      resolve_context.then (arg) => segment._split arg
-      resolve_context.catch (err) => segment._reject err
     if map_func?
-      proceed @pipe map_func
+      @pipe(map_func).split()
     else
-      proceed @
-    segment
+      @_await new SplitSegment(@_context)
 
   map: (func) ->
     if func == undefined
@@ -97,6 +62,35 @@ class Segment
     else
       @split().pipe(func).join()
 
+  _await: (segment) ->
+    switch @_state
+      when State.Pending then @_wait_queue.push segment
+      when State.Fulfilled then segment._proceed_fulfill @_result
+      when State.Rejected then segment._proceed_reject @_error
+    segment
+
+  _proceed_fulfill: (data) ->
+    @_fulfill data
+
+  _proceed_reject: (error) ->
+    @_reject error
+
+  _fulfill: (@_result) ->
+    switch @_state
+      when State.Rejected then throw 'Pipeline segment cannot be fulfilled, already rejected'
+      when State.Fulfilled then throw 'Pipeline segment cannot be fulfilled, already fulfilled'
+    @_state = State.Fulfilled
+    segment._proceed_fulfill @_result for segment in @_wait_queue
+
+  _reject: (@_error) ->
+    throw 'Pipeline segment already rejected!' if @_state == State.Rejected
+    @_state = State.Rejected
+    segment._proceed_reject @_error for segment in @_wait_queue
+
+  _pipe: (fulfill, reject) ->
+    @_await new FuncSegment(fulfill, reject, @_context)
+
+  _pass: -> @_await new Segment @_context
 
 
 class SourceSegment extends Segment
@@ -107,74 +101,73 @@ class SourceSegment extends Segment
 
 class FuncSegment extends Segment
 
-  constructor: (@func, context) ->
+  constructor: (@fulfill_func, @reject_func, context) ->
     super(context)
 
-  _exec: (data) ->
-    result = @func.apply @_context, [data]
+  _proceed_fulfill: (data) ->
+    return @_fulfill data unless @fulfill_func?
+    result = @fulfill_func.apply @_context, [data]
     if result?.then?
       result
-        .then (result) => @_fulfill result
+        .then (data) => @_fulfill data
         .catch (error) => @_reject error
     else
       @_fulfill result
+
+  _proceed_reject: (error) ->
+    return @_reject error unless @reject_func?
+    result = @reject_func.apply @_context, [error]
+    if result?.then?
+      result
+        .then (data) => @_fulfill data
+        .catch (error) => @_reject error
+    else
+      @_reject result
 
 class SplitSegment extends Segment
 
   constructor: (context) ->
     super context
-    @_has_split = false
-    @_pipe_funcs = []
-
-  _split: (data) ->
-    throw 'Can only split on Array context!' unless Array.isArray(data)
-    throw 'Already split!' if @child_pipes?.length
-    @_has_split = true
-    @_child_pipes = (new SourceSegment(item, @_context) for item in data)
-    if @_pipe_funcs?.length
-      for child in @_child_pipes
-        child.pipe @_pipe_funcs
-    @_join() if @_join_segment
-    @_then() if @_then_callback
-
-  pipe: (func) ->
-    if @_has_split
-      @_child_pipes = (child.pipe func for child in (@_child_pipes or []))
-    else
-      @_pipe_funcs.push func
-    @
-
-  _then: ->
-    process = =>
-      current = @_child_pipes.shift()
-      current.then (result) =>
-        @then_callback result
-        return process() if @_child_pipes?.length
-      current.catch (err) => @catch err
-    process()
-
-  then: (callback) ->
-    @then_callback = callback
-    @_then() if @_has_split
-    @
-
-  _join: ->
-    results = []
-    process = =>
-      current = @_child_pipes.shift()
-      return @_join_segment._fulfill results unless current?
-      current.then (result) =>
-        results.push result
-        process()
-      current.catch (err) => @_join_segment._reject err
-    process()
 
   join: ->
-    @_join_segment = new Segment @_context
-    @_join() if @_has_split
-    @_join_segment
+    @_await new Segment @_context
+
+  _pipe: (fulfill, reject) ->
+    @_await new EachSegment(fulfill, reject, @_context)
+
+class EachSegment extends SplitSegment
+
+  constructor: (@fulfill_func, @reject_func, context) ->
+    super context
+
+  _proceed_fulfill: (data) ->
+    throw 'Can only split on Array context!' unless Array.isArray(data)
+    results = []
+    data = data.slice()
+    process = =>
+      current = data.shift()
+      return @_fulfill results unless current?
+      segment = new FuncSegment @fulfill_func, @reject_func, @_context
+      segment.then (result) ->
+        results.push result
+        process()
+      segment.catch (err) => @_reject err
+      segment._proceed_fulfill current
+    process()
+
+
+class Promise extends Segment
+
+  constructor: (callback) ->
+    super()
+    callback(
+      (data) => @_fulfill data
+      (err) => @_reject err
+    )
 
 module.exports =
+
+    Promise: Promise
 
     source: (data) ->
       new SourceSegment data
