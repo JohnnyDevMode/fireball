@@ -52,6 +52,7 @@ class Model
       .pipe apply_table
       .pipe (params) => @_request 'put', params
       .pipe -> item
+      .pipe @post_read_hook
 
   put_all: (items) ->
     new_items = []
@@ -64,6 +65,7 @@ class Model
         params
       .pipe (params) => @_request 'batchWrite', params
       .pipe -> new_items
+      .map @post_read_hook
 
   insert: (item, params={}) ->
     item = assign {}, item

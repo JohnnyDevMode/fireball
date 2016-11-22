@@ -53,7 +53,6 @@ describe 'Model Tests', ->
       test_model.foo.should.eql 'bar'
 
 
-
   describe 'instance', ->
 
     model = undefined
@@ -685,15 +684,15 @@ describe 'Model Tests', ->
       it 'should call post_read_hook', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
-        params =
-          names: '#identifier': 'identifier'
-          values: ':identifier': item1.identifier
-        called = 0
-        model.post_read_hook = (item) ->
-          called++
-          item
         model.put_all([item1, item2])
           .then ->
+            called = 0
+            model.post_read_hook = (item) ->
+              called++
+              item
+            params =
+              names: '#identifier': 'identifier'
+              values: ':identifier': item1.identifier
             model.query('#identifier = :identifier', params).then (results) ->
               called.should.eql 1
               done()
@@ -751,7 +750,6 @@ describe 'Model Tests', ->
       it 'should handle query with no results', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
-        key = identifier: '12312'
         params =
           names: identifier: 'identifier'
           values: identifier: 'not to be found'
@@ -759,20 +757,6 @@ describe 'Model Tests', ->
           .then ->
             model.query_single('#identifier = :identifier', params).then (result) ->
               expect(result).to.be.nil
-              done()
-          .catch done
-
-      it 'should call post_read_hook', (done) ->
-        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
-        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
-        called = 0
-        model.post_read_hook = (item) ->
-          called++
-          item
-        model.put_all([item1, item2])
-          .then ->
-            model.scan().then (results) ->
-              called.should.eql 2
               done()
           .catch done
 
@@ -865,6 +849,20 @@ describe 'Model Tests', ->
           .then ->
             model.scan(limit: 1).then (results) ->
               results.length.should.eql 1
+              done()
+          .catch done
+
+      it 'should call post_read_hook', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
+        model.put_all([item1, item2])
+          .then ->
+            called = 0
+            model.post_read_hook = (item) ->
+              called++
+              item
+            model.scan().then (results) ->
+              called.should.eql 2
               done()
           .catch done
 
@@ -982,12 +980,12 @@ describe 'Model Tests', ->
             {identifier: '21321'}
             {identifier: '43535'}
         ]
-        called = 0
-        model.post_read_hook = (item) ->
-          called++
-          item
         model.put_all([item1, item2])
           .then ->
+            called = 0
+            model.post_read_hook = (item) ->
+              called++
+              item
             model.for_keys(keys).then (results) ->
               called.should.eql 2
               done()
