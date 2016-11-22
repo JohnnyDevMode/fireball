@@ -201,6 +201,35 @@ describe 'Model Tests', ->
                 done()
               .catch done
 
+      describe 'hooks', ->
+
+        it 'should call pre_write_hook', (done) ->
+          item = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+          called = false
+          model.pre_write_hook = (item) ->
+            called = true
+            item
+          model.put(item)
+            .then (after) ->
+              called.should.eql true
+              done()
+            .catch done
+
+        it 'should call pre_write_hook after id and timestaps', (done) ->
+          item = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+          called = false
+          model.pre_write_hook = (item) ->
+            called = true
+            item.should.have.property 'identifier'
+            item.should.have.property 'created_at'
+            item.should.have.property 'updated_at'
+            item
+          model.put(item)
+            .then (after) ->
+              called.should.eql true
+              done()
+            .catch done
+
     describe '.put_all', ->
 
       it 'should proxy put and create params', (done) ->
@@ -280,6 +309,34 @@ describe 'Model Tests', ->
               items[0].updated_at.should.not.eql item1.updated_at
               items[1].updated_at.should.not.eql item2.updated_at
               done()
+
+      describe 'hooks', ->
+
+        it 'should call pre_write_hook', (done) ->
+          item1 = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+          item2 = identifier: '2345', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+          called = 0
+          model.pre_write_hook = (item) ->
+            called++
+            item
+          model.auto_timestamps = true
+          model.put_all([item1, item2]).then (items) ->
+            called.should.eql 2
+            done()
+
+        it 'should call pre_write_hook after id and timestaps', (done) ->
+          item1 = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+          item2 = identifier: '2345', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+          called = 0
+          model.pre_write_hook = (item) ->
+            called++
+            item.should.have.property 'identifier'
+            item.should.have.property 'created_at'
+            item.should.have.property 'updated_at'
+            item
+          model.put_all([item1, item2]).then (items) ->
+            called.should.eql 2
+            done()
 
     describe '.insert', ->
 
@@ -472,6 +529,20 @@ describe 'Model Tests', ->
             done()
           .catch (err) -> console.log err
 
+      it 'should call post_read_hook', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        key = identifier: '12312'
+        called = false
+        model.post_read_hook = (item) ->
+          called = true
+          item
+        model.put(item)
+          .then ->
+            model.get(key).then (actual)->
+              called.should.eql true
+              done()
+          .catch done
+
     describe '.delete', ->
 
       it 'should proxy delete and setup key param', (done) ->
@@ -587,12 +658,9 @@ describe 'Model Tests', ->
       it 'should handle query', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
-        key = identifier: '12312'
         params =
-          names:
-            '#identifier': 'identifier'
-          values:
-            ':identifier': item1.identifier
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
         model.put_all([item1, item2])
           .then ->
             model.query('#identifier = :identifier', params).then (results) ->
@@ -604,7 +672,6 @@ describe 'Model Tests', ->
       it 'should handle query with no results', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
-        key = identifier: '12312'
         params =
           names: identifier: 'identifier'
           values: 'identifier': 'not to be found'
@@ -612,6 +679,23 @@ describe 'Model Tests', ->
           .then ->
             model.query('#identifier = :identifier', params).then (result) ->
               result.length.should.eql 0
+              done()
+          .catch done
+
+      it 'should call post_read_hook', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+        called = 0
+        model.post_read_hook = (item) ->
+          called++
+          item
+        model.put_all([item1, item2])
+          .then ->
+            model.query('#identifier = :identifier', params).then (results) ->
+              called.should.eql 1
               done()
           .catch done
 
@@ -675,6 +759,20 @@ describe 'Model Tests', ->
           .then ->
             model.query_single('#identifier = :identifier', params).then (result) ->
               expect(result).to.be.nil
+              done()
+          .catch done
+
+      it 'should call post_read_hook', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
+        called = 0
+        model.post_read_hook = (item) ->
+          called++
+          item
+        model.put_all([item1, item2])
+          .then ->
+            model.scan().then (results) ->
+              called.should.eql 2
               done()
           .catch done
 
@@ -872,5 +970,25 @@ describe 'Model Tests', ->
           .then ->
             model.for_keys(keys).then (results) ->
               results.length.should.eql 2
+              done()
+          .catch done
+
+
+      it 'should call post_read_hook', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
+        keys = [
+            {identifier: '12312'}
+            {identifier: '21321'}
+            {identifier: '43535'}
+        ]
+        called = 0
+        model.post_read_hook = (item) ->
+          called++
+          item
+        model.put_all([item1, item2])
+          .then ->
+            model.for_keys(keys).then (results) ->
+              called.should.eql 2
               done()
           .catch done

@@ -46,7 +46,7 @@ class Model
   put: (item, params={}) ->
     item = assign {}, item
     @_piped item
-      .pipe [apply_timestamps, apply_identifier]
+      .pipe [apply_timestamps, apply_identifier, @pre_write_hook]
       .pipe (item) -> assign params, Item: item
       .pipe map_params condition_mapping
       .pipe apply_table
@@ -56,7 +56,7 @@ class Model
   put_all: (items) ->
     new_items = []
     @_piped items
-      .map [clone, apply_timestamps, apply_identifier]
+      .map [clone, apply_timestamps, apply_identifier, @pre_write_hook]
       .pipe (items) =>
         new_items = items
         params = RequestItems: {}
@@ -89,6 +89,7 @@ class Model
       .pipe apply_table
       .pipe (params) => @_request 'get', params
       .pipe (result) -> result?.Item
+      .pipe @post_read_hook
 
   delete: (keys..., params) ->
     @_piped @_keyed_params keys, params
@@ -101,9 +102,10 @@ class Model
       .pipe (params) -> assign params, {key_condition}
       .pipe map_params query_mapping
       .pipe apply_table
-      .pipe (params) =>
-        @_request 'query', params
+      .pipe (params) => @_request 'query', params
       .pipe (results) -> results?.Items or []
+      .pipe (items) -> items
+      .map @post_read_hook
 
   query_single: (key_condition, params={}) ->
     @query(key_condition, params).pipe (result) -> result[0]
@@ -116,6 +118,7 @@ class Model
       .pipe apply_table
       .pipe (params) => @_request 'scan', params
       .pipe (results) -> results?.Items or []
+      .map @post_read_hook
 
   all: (params) -> @scan undefined, params
 
@@ -128,6 +131,7 @@ class Model
         params
       .pipe (params) => @_request 'batchGet', params
       .pipe (results) => results.Responses[@name]
+      .map @post_read_hook
 
   _request: (method, params) ->
     new Promise (resolve, reject) =>

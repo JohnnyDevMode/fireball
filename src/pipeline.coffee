@@ -83,11 +83,7 @@ class Segment
   split: (map_func) ->
     segment = new SplitSegment @_context
     proceed = (resolve_context) =>
-      resolve_context.then (arg) =>
-        if map_func?
-          segment._split arg
-        else
-          segment._split arg
+      resolve_context.then (arg) => segment._split arg
       resolve_context.catch (err) => segment._reject err
     if map_func?
       proceed @pipe map_func
@@ -96,7 +92,11 @@ class Segment
     segment
 
   map: (func) ->
-    @split().pipe(func).join()
+    if func == undefined
+      @_pass()
+    else
+      @split().pipe(func).join()
+
 
 
 class SourceSegment extends Segment
@@ -122,40 +122,57 @@ class FuncSegment extends Segment
 class SplitSegment extends Segment
 
   constructor: (context) ->
-    super(context)
+    super context
+    @_has_split = false
+    @_pipe_funcs = []
 
   _split: (data) ->
     throw 'Can only split on Array context!' unless Array.isArray(data)
     throw 'Already split!' if @child_pipes?.length
+    @_has_split = true
     @_child_pipes = (new SourceSegment(item, @_context) for item in data)
+    if @_pipe_funcs?.length
+      for child in @_child_pipes
+        child.pipe @_pipe_funcs
+    @_join() if @_join_segment
+    @_then() if @_then_callback
 
   pipe: (func) ->
-    @_child_pipes = (child.pipe func for child in (@_child_pipes or []))
+    if @_has_split
+      @_child_pipes = (child.pipe func for child in (@_child_pipes or []))
+    else
+      @_pipe_funcs.push func
     @
 
-  then: (callback) ->
+  _then: ->
     process = =>
       current = @_child_pipes.shift()
       current.then (result) =>
-        callback result
+        @then_callback result
         return process() if @_child_pipes?.length
       current.catch (err) => @catch err
     process()
+
+  then: (callback) ->
+    @then_callback = callback
+    @_then() if @_has_split
     @
 
-  join: ->
+  _join: ->
     results = []
-    segment = new Segment @_context
     process = =>
       current = @_child_pipes.shift()
+      return @_join_segment._fulfill results unless current?
       current.then (result) =>
         results.push result
-        return process() if @_child_pipes?.length
-        segment._fulfill results
-      current.catch (err) =>
-        segment._reject err
+        process()
+      current.catch (err) => @_join_segment._reject err
     process()
-    segment
+
+  join: ->
+    @_join_segment = new Segment @_context
+    @_join() if @_has_split
+    @_join_segment
 
 module.exports =
 
