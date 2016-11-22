@@ -64,11 +64,19 @@ class Segment
     @catch (err) => segment._reject err
     segment
 
+  _pass: ->
+    segment = new Segment @_context
+    @then (data) => segment._fulfill data
+    @catch (err) => segment._reject err
+    segment
+
   pipe: (func) ->
     if Array.isArray func
       next = head func
       return @ unless next?
       @_pipe(next).pipe tail func
+    else if func == undefined
+      @_pass()
     else
       @_pipe func
 

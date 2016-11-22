@@ -94,6 +94,16 @@ describe 'Pipeline Tests', ->
           done()
         .catch done
 
+    it 'should pipe with undefined func', (done) ->
+      data = {foo: 'bar'}
+      pipeline
+        .source data
+        .pipe undefined
+        .then (result) ->
+          result.should.eql data
+          done()
+        .catch done
+
     it 'should handle error', (done) ->
       context = {foo: 'bar'}
       err_msg = 'Some error occured'
