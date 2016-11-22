@@ -231,89 +231,88 @@ describe 'Model Tests', ->
                 after.updated_at.should.not.eql item.updated_at
                 done()
               .catch done
-    #
-    # describe '.put_all', ->
-    #
-    #   it 'should proxy put and create params', (done) ->
-    #     item1 = identifier: '12312', foo: 'bar', baz: 'qak'
-    #     item2 = identifier: '21321', foo: 'qak', baz: 'bar'
-    #     model._request = (method, params, include_table) ->
-    #       method.should.eql 'batchWrite'
-    #       params.should.have.property 'RequestItems'
-    #       params.RequestItems.should.have.property 'table_one'
-    #       params.RequestItems.table_one.length.should.eql 2
-    #       omit(params.RequestItems.table_one[0].PutRequest.Item, 'created_at', 'updated_at').should.eql item1
-    #       omit(params.RequestItems.table_one[1].PutRequest.Item, 'created_at', 'updated_at').should.eql item2
-    #       include_table.should.eql false
-    #       Promise.resolve()
-    #     model.put_all([item1, item2])
-    #       .then -> done()
-    #       .catch done
-    #
-    #   it 'should put items', (done) ->
-    #     item1 = identifier: '12312', foo: 'bar', baz: 'qak'
-    #     item2 = identifier: '21321', foo: 'qak', baz: 'bar'
-    #     model.put_all([item1, item2])
-    #       .then ->
-    #         model.scan().then (items) ->
-    #           items.length.should.eql 2
-    #           done()
-    #       .catch done
-    #
-    #   it 'should propagate error', (done) ->
-    #     item = identifier: '12312', foo: 'bar', baz: 'quk'
-    #     model._request = (method, params) ->
-    #       Promise.reject 'some error'
-    #     model.put_all([item])
-    #       .then ->
-    #         done 'Should not resolve'
-    #       .catch (error) ->
-    #         error.should.eql 'some error'
-    #         done()
-    #
-    #   describe 'auto_timestamps', ->
-    #
-    #     it 'should apply timestaps if true', (done) ->
-    #         item1 = identifier: '12312', foo: 'bar', baz: 'qak'
-    #         item2 = identifier: '2345', foo: 'bar', baz: 'qak'
-    #         model.auto_timestamps = true
-    #         model.put_all([item1, item2]).then (items) ->
-    #           items[0].should.have.property 'created_at'
-    #           items[0].should.have.property 'updated_at'
-    #           items[1].should.have.property 'created_at'
-    #           items[1].should.have.property 'updated_at'
-    #           done()
-    #
-    #     it 'should not apply timestaps if false', (done) ->
-    #         item1 = identifier: '12312', foo: 'bar', baz: 'qak'
-    #         item2 = identifier: '2345', foo: 'bar', baz: 'qak'
-    #         model.auto_timestamps = false
-    #         model.put_all([item1, item2]).then (items) ->
-    #           items[0].should.not.have.property 'created_at'
-    #           items[0].should.not.have.property 'updated_at'
-    #           items[1].should.not.have.property 'created_at'
-    #           items[1].should.not.have.property 'updated_at'
-    #           done()
-    #
-    #     it 'should not override created_at at', (done) ->
-    #         item1 = identifier: '12312', foo: 'bar', baz: 'qak', created_at: new Date()
-    #         item2 = identifier: '2345', foo: 'bar', baz: 'qak', created_at: new Date()
-    #         model.auto_timestamps = true
-    #         model.put_all([item1, item2]).then (items) ->
-    #           items[0].created_at.should.eql item1.created_at
-    #           items[1].created_at.should.eql item2.created_at
-    #           done()
-    #
-    #     it 'should override updated_at ', (done) ->
-    #         item1 = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date()
-    #         item2 = identifier: '2345', foo: 'bar', baz: 'qak', updated_at: new Date()
-    #         model.auto_timestamps = true
-    #         model.put_all([item1, item2]).then (items) ->
-    #           items[0].updated_at.should.eql item1.updated_at
-    #           items[1].updated_at.should.eql item2.updated_at
-    #           done()
-    #
-    describe.only '.insert', ->
+
+    describe '.put_all', ->
+
+      it 'should proxy put and create params', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        model._request = (method, params) ->
+          method.should.eql 'batchWrite'
+          params.should.have.property 'RequestItems'
+          params.RequestItems.should.have.property 'table_one'
+          params.RequestItems.table_one.length.should.eql 2
+          omit(params.RequestItems.table_one[0].PutRequest.Item, 'created_at', 'updated_at').should.eql item1
+          omit(params.RequestItems.table_one[1].PutRequest.Item, 'created_at', 'updated_at').should.eql item2
+          Promise.resolve()
+        model.put_all([item1, item2])
+          .then -> done()
+          .catch done
+
+      it 'should put items', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        model.put_all([item1, item2])
+          .then ->
+            model.scan().then (items) ->
+              items.length.should.eql 2
+              done()
+          .catch done
+
+      it 'should propagate error', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        model._request = (method, params) ->
+          Promise.reject 'some error'
+        model.put_all([item])
+          .then ->
+            done 'Should not resolve'
+          .catch (error) ->
+            error.should.eql 'some error'
+            done()
+
+      describe 'auto_timestamps', ->
+
+        it 'should apply timestaps if true', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak'
+            model.auto_timestamps = true
+            model.put_all([item1, item2]).then (items) ->
+              items[0].should.have.property 'created_at'
+              items[0].should.have.property 'updated_at'
+              items[1].should.have.property 'created_at'
+              items[1].should.have.property 'updated_at'
+              done()
+
+        it 'should not apply timestaps if false', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak'
+            model.auto_timestamps = false
+            model.put_all([item1, item2]).then (items) ->
+              items[0].should.not.have.property 'created_at'
+              items[0].should.not.have.property 'updated_at'
+              items[1].should.not.have.property 'created_at'
+              items[1].should.not.have.property 'updated_at'
+              done()
+
+        it 'should not override created_at at', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak', created_at: new Date()
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak', created_at: new Date()
+            model.auto_timestamps = true
+            model.put_all([item1, item2]).then (items) ->
+              items[0].created_at.should.eql item1.created_at
+              items[1].created_at.should.eql item2.created_at
+              done()
+
+        it 'should override updated_at ', (done) ->
+            item1 = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+            item2 = identifier: '2345', foo: 'bar', baz: 'qak', updated_at: new Date(0)
+            model.auto_timestamps = true
+            model.put_all([item1, item2]).then (items) ->
+              items[0].updated_at.should.not.eql item1.updated_at
+              items[1].updated_at.should.not.eql item2.updated_at
+              done()
+
+    describe '.insert', ->
 
       it 'should proxy to put and create condition', (done) ->
         item = foo: 'bar', baz: 'qak'
@@ -372,14 +371,14 @@ describe 'Model Tests', ->
       it 'should proxy to update and setup condition', (done) ->
         key = identifier: '12312'
         condition =
-          expression: 'SET #name = :value'
+          update: 'SET #name = :value'
           names:
             '#name': 'name'
           values:
             ':value': 'value'
         model._request = (method, params) ->
           params.should.have.property 'UpdateExpression'
-          params.UpdateExpression.should.eql condition.expression
+          params.UpdateExpression.should.eql condition.update
           params.should.have.property 'ExpressionAttributeNames'
           params.ExpressionAttributeNames.should.eql condition.names
           params.should.have.property 'ExpressionAttributeValues'
@@ -404,7 +403,7 @@ describe 'Model Tests', ->
         item = identifier: '1234', foo: 'bar', baz: 'quk'
         model.put(item)
           .then (item) ->
-            model.update(item, expression: 'SET foo = :value', values: {':value': 'clk'})
+            model.update(item, update: 'SET foo = :value', values: {':value': 'clk'})
               .then ->
                 model.scan().then (items) ->
                   items.length.should.eql 1
@@ -414,7 +413,7 @@ describe 'Model Tests', ->
 
       it 'should handle missing key', (done) ->
         item = identifier: '1234', foo: 'bar', baz: 'quk'
-        model.update(item, expression: 'SET foo = :value', values: {':value': 'clk'})
+        model.update(item, update: 'SET foo = :value', values: {':value': 'clk'})
           .then (updated) ->
             updated.should.not.be.null
             updated.foo.should.eql 'clk'
@@ -424,144 +423,143 @@ describe 'Model Tests', ->
               items[0].should.not.have.property 'baz'
               done()
           .catch done
-    
-    # describe '.get', ->
-    #
-    #   it 'should proxy get and setup key param', (done) ->
-    #     key = identifier: '12312'
-    #     model._request = (method, params) ->
-    #       method.should.eql 'get'
-    #       params.should.have.property 'Key'
-    #       params.Key.should.eql key
-    #       Promise.resolve()
-    #     model.get(key)
-    #       .then -> done()
-    #       .catch done
-    #
-    #   it 'should map projection params', (done) ->
-    #     key = identifier: '12312'
-    #     projection_params =
-    #       projection: '#field'
-    #       names: {'#feild': 'field'}
-    #     model._request = (method, params) ->
-    #       params.should.have.property 'ProjectionExpression'
-    #       params.ProjectionExpression.should.eql projection_params.projection
-    #       params.should.have.property 'ExpressionAttributeNames'
-    #       params.ExpressionAttributeNames.should.eql projection_params.names
-    #       Promise.resolve()
-    #     model.get(key, projection_params)
-    #       .then -> done()
-    #       .catch done
-    #
-    #   it 'should propagate error', (done) ->
-    #     key = identifier: '12312'
-    #     model._request = (method, params) ->
-    #       Promise.reject 'some error'
-    #     model.get(key)
-    #       .then ->
-    #         done 'Should not resolve'
-    #       .catch (error) ->
-    #         error.should.eql 'some error'
-    #         done()
-    #
-    #   it 'should handle get', (done) ->
-    #     item = identifier: '12312', foo: 'bar', baz: 'quk'
-    #     key = identifier: '12312'
-    #     model.put(item)
-    #       .then ->
-    #         model.get(key).then (actual)->
-    #           actual.should.not.be.null
-    #           actual.should.eql item
-    #           done()
-    #       .catch done
-    #
-    #   it 'should handle get with raw hash', (done) ->
-    #     item = identifier: '12312', foo: 'bar', baz: 'quk'
-    #     model.put(item)
-    #       .then ->
-    #         model.get('12312').then (actual)->
-    #           actual.should.not.be.null
-    #           actual.should.eql item
-    #           done()
-    #       .catch done
-    #
-    #   it 'should handle get with raw hash and range', (done) ->
-    #     item = identifier: '12312', range_key: 'bar'
-    #     model = new Model 'table_two', range_key: 'range_key'
-    #     model.put(item)
-    #       .then ->
-    #         model.get('12312', 'bar').then (actual) ->
-    #           actual.should.not.be.null
-    #           actual.should.eql item
-    #           done()
-    #       .catch done
-    #
-    #   it 'should handle unknown key', (done) ->
-    #     key = identifier: '12312'
-    #     model.get(key)
-    #       .then (actual) ->
-    #         expect(actual).to.be.nil
-    #         done()
-    #       .catch (err) -> console.log err
-    #
-    # describe '.delete', ->
-    #
-    #   it 'should proxy delete and setup key param', (done) ->
-    #     key = identifier: '12312'
-    #     model._request = (method, params) ->
-    #       method.should.eql 'delete'
-    #       params.should.have.property 'Key'
-    #       params.Key.should.eql key
-    #       Promise.resolve()
-    #     model.delete(key)
-    #       .then -> done()
-    #       .catch done
-    #
-    #   it 'should map condition params', (done) ->
-    #     key = identifier: '12312'
-    #     condition_params =
-    #       condition: '#field = :value'
-    #       names: {'#feild': 'field'}
-    #       values: {':value': 'value'}
-    #     model._request = (method, params) ->
-    #       params.should.have.property 'ConditionExpression'
-    #       params.ConditionExpression.should.eql condition_params.condition
-    #       params.should.have.property 'ExpressionAttributeNames'
-    #       params.ExpressionAttributeNames.should.eql condition_params.names
-    #       params.should.have.property 'ExpressionAttributeValues'
-    #       params.ExpressionAttributeValues.should.eql condition_params.values
-    #       Promise.resolve()
-    #     model.delete(key, condition_params)
-    #       .then -> done()
-    #       .catch done
-    #
-    #   it 'should propagate error', (done) ->
-    #     key = identifier: '12312'
-    #     model._request = (method, params) ->
-    #       Promise.reject 'some error'
-    #     model.delete(key)
-    #       .then ->
-    #         done 'Should not resolve'
-    #       .catch (error) ->
-    #         error.should.eql 'some error'
-    #         done()
-    #
-    #   it 'should handle delete', (done) ->
-    #     item = identifier: '12312', foo: 'bar', baz: 'quk'
-    #     key = identifier: '12312'
-    #     model.put(item)
-    #       .then ->
-    #         model.delete(key).then ->
-    #           model.scan().then (items) ->
-    #               items.length.should.eql 0
-    #               done()
-    #       .catch done
-    #
+
+    describe '.get', ->
+
+      it 'should proxy get and setup key param', (done) ->
+        key = identifier: '12312'
+        model._request = (method, params) ->
+          method.should.eql 'get'
+          params.should.have.property 'Key'
+          params.Key.should.eql key
+          Promise.resolve()
+        model.get(key)
+          .then -> done()
+          .catch done
+
+      it 'should map projection params', (done) ->
+        key = identifier: '12312'
+        projection_params =
+          projection: '#field'
+          names: {'#feild': 'field'}
+        model._request = (method, params) ->
+          params.should.have.property 'ProjectionExpression'
+          params.ProjectionExpression.should.eql projection_params.projection
+          params.should.have.property 'ExpressionAttributeNames'
+          params.ExpressionAttributeNames.should.eql projection_params.names
+          Promise.resolve()
+        model.get(key, projection_params)
+          .then -> done()
+          .catch done
+
+      it 'should propagate error', (done) ->
+        key = identifier: '12312'
+        model._request = (method, params) ->
+          Promise.reject 'some error'
+        model.get(key)
+          .then ->
+            done 'Should not resolve'
+          .catch (error) ->
+            error.should.eql 'some error'
+            done()
+
+      it 'should handle get', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        key = identifier: '12312'
+        model.put(item)
+          .then ->
+            model.get(key).then (actual)->
+              actual.should.not.be.null
+              actual.should.eql item
+              done()
+          .catch done
+
+      it 'should handle get with raw hash', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        model.put(item)
+          .then ->
+            model.get('12312').then (actual)->
+              actual.should.not.be.null
+              actual.should.eql item
+              done()
+          .catch done
+
+      it 'should handle get with raw hash and range', (done) ->
+        item = identifier: '12312', range_key: 'bar'
+        model = new Model 'table_two', range_key: 'range_key'
+        model.put(item)
+          .then ->
+            model.get('12312', 'bar').then (actual) ->
+              actual.should.not.be.null
+              actual.should.eql item
+              done()
+          .catch done
+
+      it 'should handle unknown key', (done) ->
+        key = identifier: '12312'
+        model.get(key)
+          .then (actual) ->
+            expect(actual).to.be.nil
+            done()
+          .catch (err) -> console.log err
+
+    describe '.delete', ->
+
+      it 'should proxy delete and setup key param', (done) ->
+        key = identifier: '12312'
+        model._request = (method, params) ->
+          method.should.eql 'delete'
+          params.should.have.property 'Key'
+          params.Key.should.eql key
+          Promise.resolve()
+        model.delete(key)
+          .then -> done()
+          .catch done
+
+      it 'should map condition params', (done) ->
+        key = identifier: '12312'
+        condition_params =
+          condition: '#field = :value'
+          names: {'#feild': 'field'}
+          values: {':value': 'value'}
+        model._request = (method, params) ->
+          params.should.have.property 'ConditionExpression'
+          params.ConditionExpression.should.eql condition_params.condition
+          params.should.have.property 'ExpressionAttributeNames'
+          params.ExpressionAttributeNames.should.eql condition_params.names
+          params.should.have.property 'ExpressionAttributeValues'
+          params.ExpressionAttributeValues.should.eql condition_params.values
+          Promise.resolve()
+        model.delete(key, condition_params)
+          .then -> done()
+          .catch done
+
+      it 'should propagate error', (done) ->
+        key = identifier: '12312'
+        model._request = (method, params) ->
+          Promise.reject 'some error'
+        model.delete(key)
+          .then ->
+            done 'Should not resolve'
+          .catch (error) ->
+            error.should.eql 'some error'
+            done()
+
+      it 'should handle delete', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        key = identifier: '12312'
+        model.put(item)
+          .then ->
+            model.delete(key).then ->
+              model.scan().then (items) ->
+                  items.length.should.eql 0
+                  done()
+          .catch done
+
     describe '.query', ->
 
       it 'should proxy query and setup key param', (done) ->
-        query =
-          expression: '#identifier = :identifier'
+        params =
           filter: '#foo = :bar'
           names:
             '#identifier': 'identifier'
@@ -572,46 +570,45 @@ describe 'Model Tests', ->
           index: 'secondary_index'
           limit: 10
           forward: false
-
-        model._request = (method, params) ->
+        key_condition = '#identifier = :identifier'
+        model._request = (method, req_params) ->
           method.should.eql 'query'
-          params.should.have.property 'KeyConditionExpression'
-          params.KeyConditionExpression.should.eql query.expression
-          params.should.not.have.property 'expression'
-          params.should.have.property 'ExpressionAttributeNames'
-          params.ExpressionAttributeNames.should.eql query.names
-          params.should.not.have.property 'names'
-          params.should.have.property 'ExpressionAttributeValues'
-          params.ExpressionAttributeValues.should.eql query.values
-          params.should.not.have.property 'values'
-          params.should.have.property 'FilterExpression'
-          params.FilterExpression.should.eql query.filter
-          params.should.not.have.property 'filter'
-          params.should.have.property 'IndexName'
-          params.IndexName.should.eql query.index
-          params.should.not.have.property 'index'
-          params.should.have.property 'Limit'
-          params.Limit.should.eql query.limit
-          params.should.not.have.property 'limit'
-          params.should.have.property 'ScanIndexForward'
-          params.ScanIndexForward.should.eql query.forward
-          params.should.not.have.property 'forward'
+          req_params.should.have.property 'KeyConditionExpression'
+          req_params.KeyConditionExpression.should.eql key_condition
+          req_params.should.not.have.property 'expression'
+          req_params.should.have.property 'ExpressionAttributeNames'
+          req_params.ExpressionAttributeNames.should.eql params.names
+          req_params.should.not.have.property 'names'
+          req_params.should.have.property 'ExpressionAttributeValues'
+          req_params.ExpressionAttributeValues.should.eql params.values
+          req_params.should.not.have.property 'values'
+          req_params.should.have.property 'FilterExpression'
+          req_params.FilterExpression.should.eql params.filter
+          req_params.should.not.have.property 'filter'
+          req_params.should.have.property 'IndexName'
+          req_params.IndexName.should.eql params.index
+          req_params.should.not.have.property 'index'
+          req_params.should.have.property 'Limit'
+          req_params.Limit.should.eql params.limit
+          req_params.should.not.have.property 'limit'
+          req_params.should.have.property 'ScanIndexForward'
+          req_params.ScanIndexForward.should.eql params.forward
+          req_params.should.not.have.property 'forward'
 
           Promise.resolve(Items: [])
-        model.query(query)
+        model.query(key_condition, params)
           .then -> done()
           .catch done
 
       it 'should propagate error', (done) ->
         model._request = (method, params) ->
           Promise.reject 'some error'
-        query =
-          expression: '#identifier = :identifier'
+        params =
           names:
             '#identifier': 'identifier'
           values:
             ':identifier': '1234'
-        model.query(query)
+        model.query('#identifier = :identifier', params)
           .then ->
             done 'Should not resolve'
           .catch (error) ->
@@ -622,15 +619,14 @@ describe 'Model Tests', ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
         key = identifier: '12312'
-        query =
-          expression: '#identifier = :identifier'
+        params =
           names:
             '#identifier': 'identifier'
           values:
             ':identifier': item1.identifier
         model.put_all([item1, item2])
           .then ->
-            model.query(query).then (results) ->
+            model.query('#identifier = :identifier', params).then (results) ->
               results.length.should.eql 1
               results[0].should.eql item1
               done()
@@ -640,15 +636,12 @@ describe 'Model Tests', ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
         key = identifier: '12312'
-        query =
-          expression: '#identifier = :identifier'
-          names:
-            '#identifier': 'identifier'
-          values:
-            ':identifier': 'not to be found'
+        params =
+          names: identifier: 'identifier'
+          values: 'identifier': 'not to be found'
         model.put_all([item1, item2])
           .then ->
-            model.query(query).then (result) ->
+            model.query('#identifier = :identifier', params).then (result) ->
               result.length.should.eql 0
               done()
           .catch done
@@ -656,12 +649,9 @@ describe 'Model Tests', ->
     describe '.query_single', ->
 
       it 'should proxy to query and return first item', (done) ->
-        query =
-          expression: '#identifier = :identifier'
-          values: ':identifier': '1234'
         model.query = (params) ->
           pipeline.source [{identifier: 'item1'}, {identifier: 'item2'}]
-        model.query_single(query)
+        model.query_single('identifier = :identifier',  values: ':identifier': '1234')
           .then (item) ->
             item.should.not.be.nil
             item.identifier.should.eql 'item1'
@@ -669,17 +659,13 @@ describe 'Model Tests', ->
           .catch done
 
       it 'should proxy to query hadnle empty results', (done) ->
-        query =
-          expression: '#identifier = :identifier'
-          values: ':identifier': '1234'
         model.query = (params) ->
           pipeline.source []
-        model.query_single(query)
+        model.query_single('identifier = :identifier', values: identifier: '1234')
           .then (item) ->
             expect(item).to.be.nil
             done()
           .catch done
-
 
       it 'should propagate error', (done) ->
         model.query = (params) ->
@@ -687,13 +673,7 @@ describe 'Model Tests', ->
             .source {}
             .pipe ->
               Promise.reject 'some error'
-        query =
-          expression: '#identifier = :identifier'
-          names:
-            '#identifier': 'identifier'
-          values:
-            ':identifier': '1234'
-        model.query_single(query)
+        model.query_single('identifier = :identifier', values: identifier: '1234')
           .then ->
             done 'Should not resolve'
           .catch (error) ->
@@ -704,15 +684,12 @@ describe 'Model Tests', ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
         key = identifier: '12312'
-        query =
-          expression: '#identifier = :identifier'
-          names:
-            '#identifier': 'identifier'
-          values:
-            ':identifier': item1.identifier
+        params =
+          names: identifier: 'identifier'
+          values: identifier: item1.identifier
         model.put_all([item1, item2])
           .then ->
-            model.query(query).then (results) ->
+            model.query('#identifier = :identifier', params).then (results) ->
               results.length.should.eql 1
               results[0].should.eql item1
               done()
@@ -722,15 +699,12 @@ describe 'Model Tests', ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
         key = identifier: '12312'
-        query =
-          expression: '#identifier = :identifier'
-          names:
-            '#identifier': 'identifier'
-          values:
-            ':identifier': 'not to be found'
+        params =
+          names: identifier: 'identifier'
+          values: identifier: 'not to be found'
         model.put_all([item1, item2])
           .then ->
-            model.query_single(query).then (result) ->
+            model.query_single('#identifier = :identifier', params).then (result) ->
               expect(result).to.be.nil
               done()
           .catch done
@@ -738,44 +712,37 @@ describe 'Model Tests', ->
     describe '.scan', ->
 
       it 'should proxy scan and setup expression', (done) ->
-        filter =
-          filter: '#foo = :bar'
-          names:
-            '#foo': 'foo'
-          values:
-            ':bar': 'baz'
+        params =
+          names: '#foo': 'foo'
+          values: ':bar': 'baz'
           limit: 10
-        model._request = (method, params) ->
+        model._request = (method, req_params) ->
           method.should.eql 'scan'
-          params.should.have.property 'FilterExpression'
-          params.FilterExpression.should.eql filter.filter
-          params.should.not.have.property 'expression'
-          params.should.have.property 'ExpressionAttributeNames'
-          params.ExpressionAttributeNames.should.eql filter.names
-          params.should.not.have.property 'names'
-          params.should.have.property 'ExpressionAttributeValues'
-          params.ExpressionAttributeValues.should.eql filter.values
-          params.should.not.have.property 'values'
-          params.should.have.property 'Limit'
-          params.Limit.should.eql filter.limit
-          params.should.not.have.property 'limit'
-
+          req_params.should.have.property 'FilterExpression'
+          req_params.FilterExpression.should.eql params.filter
+          req_params.should.not.have.property 'expression'
+          req_params.should.have.property 'ExpressionAttributeNames'
+          req_params.ExpressionAttributeNames.should.eql params.names
+          req_params.should.not.have.property 'names'
+          req_params.should.have.property 'ExpressionAttributeValues'
+          req_params.ExpressionAttributeValues.should.eql params.values
+          req_params.should.not.have.property 'values'
+          req_params.should.have.property 'Limit'
+          req_params.Limit.should.eql params.limit
+          req_params.should.not.have.property 'limit'
           Promise.resolve(Items: [])
-        model.scan(filter)
+        model.scan('#foo = :bar', params)
           .then -> done()
           .catch done
 
       it 'should propagate error', (done) ->
         model._request = (method, params) ->
           Promise.reject 'some error'
-        filter =
-          filter: '#foo = :bar'
-          names:
-            '#foo': 'foo'
-          values:
-            ':bar': 'baz'
+        params =
+          names: '#foo': 'foo'
+          values: ':bar': 'baz'
           limit: 10
-        model.scan(filter)
+        model.scan('#foo = :foo', params)
           .then ->
             done 'Should not resolve'
           .catch (error) ->
@@ -798,15 +765,12 @@ describe 'Model Tests', ->
         item1 = identifier: '12312', foo: 'bar', baz: 'qak'
         item2 = identifier: '21321', foo: 'qak', baz: 'bar'
         key = identifier: '12312'
-        filter =
-          filter: '#foo = :foo'
-          names:
-            '#foo': 'foo'
-          values:
-            ':foo': item2.foo
+        params =
+          names: '#foo': 'foo'
+          values: ':foo': item2.foo
         model.put_all([item1, item2])
           .then ->
-            model.scan(filter).then (results) ->
+            model.scan('#foo = :foo', params).then (results) ->
               results.length.should.eql 1
               results[0].should.eql item2
               done()
@@ -816,15 +780,12 @@ describe 'Model Tests', ->
         item1 = identifier: '12312', foo: 'bar', baz: 'qak'
         item2 = identifier: '21321', foo: 'qak', baz: 'bar'
         key = identifier: '12312'
-        filter =
-          filter: '#foo = :foo'
-          names:
-            '#foo': 'foo'
-          values:
-            ':foo': 'not to be found'
+        params =
+          names: '#foo': 'foo'
+          values: ':foo': 'not to be found'
         model.put_all([item1, item2])
           .then ->
-            model.scan(filter).then (results) ->
+            model.scan('#foo = :foo', params).then (results) ->
               results.length.should.eql 0
               done()
           .catch done
@@ -836,6 +797,57 @@ describe 'Model Tests', ->
         model.put_all([item1, item2])
           .then ->
             model.scan(limit: 1).then (results) ->
+              results.length.should.eql 1
+              done()
+          .catch done
+
+    describe '.all', ->
+
+      it 'should proxy to scan', (done) ->
+        params = limit: 10
+        model.scan = (filter, req_params) ->
+          expect(filter).to.be.eql undefined
+          params.should.eql req_params
+          Promise.resolve(Items: [])
+        model.all(params)
+          .then -> done()
+          .catch done
+
+      it 'should propagate error', (done) ->
+        model._request = (method, params) ->
+          Promise.reject 'some error'
+        model.all()
+          .then ->
+            done 'Should not resolve'
+          .catch (error) ->
+            error.should.eql 'some error'
+            done()
+
+      it 'should handle all', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        key = identifier: '12312'
+        model.put_all([item1, item2])
+          .then ->
+            model.all().then (results) ->
+              results.length.should.eql 2
+              done()
+          .catch done
+
+      it 'should handle all with no results', (done) ->
+        model.all()
+          .then (results) ->
+            results.length.should.eql 0
+            done()
+          .catch done
+
+      it 'should handle all with limit', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        key = identifier: '12312'
+        model.put_all([item1, item2])
+          .then ->
+            model.all(limit: 1).then (results) ->
               results.length.should.eql 1
               done()
           .catch done

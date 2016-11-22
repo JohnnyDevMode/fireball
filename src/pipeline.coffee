@@ -5,24 +5,32 @@
 #
 ##
 
+# utils
+head = (array) ->
+  array[0]
+
+tail = (array) ->
+  array.slice(1)
+
 # Segment States
 State =
   Pending: 'pending'
   Fulfilled: 'fulfilled'
   Rejected: 'rejected'
 
-objCnt = 0
 
 ##
 # Base segment in the pipeline.  Functions as a Promise but allows piping and splitting.
 ##
 class Segment
 
-  constructor: ->
-    @obj_id = objCnt++
+  constructor: (@_context={}) ->
     @_state = State.Pending
     @_fulfill_queue = []
     @_reject_queue = []
+
+  context: (@_context) ->
+    @
 
   then: (callback) ->
     switch @_state
@@ -50,31 +58,52 @@ class Segment
     @_state = State.Rejected
     callback(@_error) for callback in @_reject_queue
 
-  pipe: (func) ->
-    segment = new FuncSegment func
-    @then (arg) => segment._exec arg
+  _pipe: (func) ->
+    segment = new FuncSegment func, @_context
+    @then (data) => segment._exec data
     @catch (err) => segment._reject err
     segment
 
-  split: ->
-    segment = new SplitSegment()
-    @then (arg) => segment._split arg
-    @catch (err) => segment._reject err
+  pipe: (func) ->
+    if Array.isArray func
+      next = head func
+      return @ unless next?
+      @_pipe(next).pipe tail func
+    else
+      @_pipe func
+
+  split: (map_func) ->
+    segment = new SplitSegment @_context
+    proceed = (resolve_context) =>
+      resolve_context.then (arg) =>
+        if map_func?
+          segment._split arg
+        else
+          segment._split arg
+      resolve_context.catch (err) => segment._reject err
+    if map_func?
+      proceed @pipe map_func
+    else
+      proceed @
     segment
+
+  map: (func) ->
+    @split().pipe(func).join()
+
 
 class SourceSegment extends Segment
 
-  constructor: (context) ->
-    super()
-    @_fulfill context
+  constructor: (data, context) ->
+    super context
+    @_fulfill data
 
 class FuncSegment extends Segment
 
-  constructor: (@func) ->
-    super()
+  constructor: (@func, context) ->
+    super(context)
 
-  _exec: (context) ->
-    result = @func context
+  _exec: (data) ->
+    result = @func.apply @_context, [data]
     if result?.then?
       result
         .then (result) => @_fulfill result
@@ -84,21 +113,31 @@ class FuncSegment extends Segment
 
 class SplitSegment extends Segment
 
-  constructor: ->
-    super()
+  constructor: (context) ->
+    super(context)
 
-  _split: (context) ->
-    throw 'Can only split on Array context!' unless Array.isArray(context)
+  _split: (data) ->
+    throw 'Can only split on Array context!' unless Array.isArray(data)
     throw 'Already split!' if @child_pipes?.length
-    @_child_pipes = (new SourceSegment(item) for item in context)
+    @_child_pipes = (new SourceSegment(item, @_context) for item in data)
 
   pipe: (func) ->
     @_child_pipes = (child.pipe func for child in (@_child_pipes or []))
     @
 
+  then: (callback) ->
+    process = =>
+      current = @_child_pipes.shift()
+      current.then (result) =>
+        callback result
+        return process() if @_child_pipes?.length
+      current.catch (err) => @catch err
+    process()
+    @
+
   join: ->
     results = []
-    segment = new Segment()
+    segment = new Segment @_context
     process = =>
       current = @_child_pipes.shift()
       current.then (result) =>
@@ -112,5 +151,5 @@ class SplitSegment extends Segment
 
 module.exports =
 
-    source: (context) ->
-      new SourceSegment context
+    source: (data) ->
+      new SourceSegment data

@@ -80,6 +80,20 @@ describe 'Pipeline Tests', ->
           done()
         .catch done
 
+    it 'should pipe with multiple funcs', (done) ->
+      data = {foo: 'bar'}
+      pipeline
+        .source data
+        .pipe [
+            (context) -> Promise.resolve(assign context, bar: 'baz')
+            (context) -> assign context, baz: 'qak'
+        ]
+        .then (result) ->
+          result.should.eql foo: 'bar', bar: 'baz', baz: 'qak'
+          result.should.eql data
+          done()
+        .catch done
+
     it 'should handle error', (done) ->
       context = {foo: 'bar'}
       err_msg = 'Some error occured'
@@ -122,6 +136,18 @@ describe 'Pipeline Tests', ->
           done()
         .catch done
 
+    it 'should handle a basic split and then', (done) ->
+      source = [1, 2, 3]
+      expected = source.length
+      pipeline
+        .source source
+        .split()
+        .then (result) ->
+          index = source.length - expected
+          result.should.eql source[index]
+          done() if --expected == 0
+        .catch done
+
     it 'should handle split with pipe', (done) ->
       pipeline
         .source [1, 2, 3]
@@ -138,10 +164,10 @@ describe 'Pipeline Tests', ->
       pipeline
         .source [1, 2, 3]
         .split()
-        .pipe (item) ->
-          item + 10
-        .pipe (item) ->
-          item + 20
+          .pipe (item) ->
+            item + 10
+          .pipe (item) ->
+            item + 20
         .join()
         .then (results) ->
           results.should.eql [31, 32, 33]
@@ -163,3 +189,90 @@ describe 'Pipeline Tests', ->
         .catch (err) ->
           err_msg.should.eql err
           done()
+
+    it 'should handle a mapped split and join', (done) ->
+      pipeline
+        .source stuff: [1, 2, 3]
+        .split (data) -> data.stuff
+        .join()
+        .then (results) ->
+          results.should.eql [1, 2, 3]
+          done()
+        .catch done
+
+  describe '.map', ->
+
+    it 'should handle map with single func', (done) ->
+      pipeline
+        .source [1, 2, 3]
+        .map (item) -> item + 10
+        .then (results) ->
+          results.should.eql [11, 12, 13]
+          done()
+        .catch done
+
+    it 'should handle multiple maps', (done) ->
+      adder = (item) -> item + 10
+      pipeline
+        .source [1, 2, 3]
+        .map adder
+        .map adder
+        .map adder
+        .then (results) ->
+          results.should.eql [31, 32, 33]
+          done()
+        .catch done
+
+    it 'should handle multiple map func', (done) ->
+      adder = (item) -> item + 10
+      pipeline
+        .source [1, 2, 3]
+        .map [adder, adder, adder]
+        .then (results) ->
+          results.should.eql [31, 32, 33]
+          done()
+        .catch done
+
+  describe '.context', ->
+
+    it 'should default context', (done) ->
+      pipeline
+        .source {}
+        .pipe (item) ->
+          @.should.eql {}
+          item
+        .then (results) ->
+          done()
+        .catch done
+
+    it 'should pipe context', (done) ->
+      context = {foo: 'bar'}
+      func = (item) ->
+        context.should.eql @
+        item
+      pipeline
+        .source {}
+        .context context
+        .pipe func
+        .pipe func
+        .then -> done()
+        .catch done
+
+    it 'should pipe context through split', (done) ->
+      context = {foo: 'bar'}
+      func = (item) ->
+        context.should.eql @
+        item
+      pipeline
+        .source {}
+        .context context
+        .pipe func
+        .pipe ->
+          [1, 2, 3]
+        .split()
+          .pipe func
+          .pipe func
+        .join()
+        .pipe func
+        .then -> done()
+        .catch done

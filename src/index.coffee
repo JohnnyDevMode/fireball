@@ -1,7 +1,7 @@
 Promise = require 'promise'
 keygen = require 'keygen'
 aws = require 'aws-sdk'
-{assign, isArray, map} = require 'lodash'
+{assign, isArray, isObject, cloneDeep} = require 'lodash'
 {map_parameters, expression_names, expression_values, key_and_params, key_for} = require './utils'
 pipeline = require './pipeline'
 
@@ -13,32 +13,28 @@ expression_mapping =
     key: 'ExpressionAttributeValues'
     value: expression_values value
 condition_mapping = assign {}, expression_mapping, condition: 'ConditionExpression'
-update_mapping = assign {}, expression_mapping, expression: 'UpdateExpression'
+update_mapping = assign {}, expression_mapping, update: 'UpdateExpression'
 projection_mapping = assign {}, expression_mapping, projection: 'ProjectionExpression'
-filter_mapping = assign {}, expression_mapping, filter: 'FilterExpression', expression: 'FilterExpression'
-query_mapping = assign {}, filter_mapping, expression: 'KeyConditionExpression', index: 'IndexName', limit: 'Limit', forward: 'ScanIndexForward'
+filter_mapping = assign {}, expression_mapping, filter: 'FilterExpression'
+query_mapping = assign {}, filter_mapping, key_condition: 'KeyConditionExpression', index: 'IndexName', limit: 'Limit', forward: 'ScanIndexForward'
 scan_mapping = assign {}, filter_mapping, limit: 'Limit'
 
-apply_timestamps = (auto_timestamps) -> (item) ->
-  return item unless auto_timestamps
+clone = (data) -> cloneDeep data
+
+apply_timestamps = (item) ->
+  return item unless @auto_timestamps
   now = new Date()
   item.created_at = now unless item.created_at?
   item.updated_at = now
   item
 
-apply_identifier = (hash_key, key_size) -> (item) ->
-  item.identifier = keygen.url key_size if hash_key == 'identifier' and not item.identifier?
+apply_identifier = (item) ->
+  item.identifier = keygen.url @key_size if @hash_key == 'identifier' and not item.identifier?
   item
 
-apply_table = (table_name) -> (params) ->
-  params.TableName = table_name
-  params
+apply_table = (params) -> assign params, TableName: @name
 
-map_params = (mapping) ->
-  (params) -> map_parameters params, mapping
-
-invoke_request = (model, method) ->
-  (params) -> model._request method, params
+map_params = (mapping) -> (params) -> map_parameters params, mapping
 
 class Model
 
@@ -49,74 +45,83 @@ class Model
 
   put: (item, params={}) ->
     item = assign {}, item
-    pipeline.source item
-      .pipe apply_timestamps @auto_timestamps
-      .pipe apply_identifier @hash_key, @key_size
-      .pipe (item) ->
-        params.Item = item
-        params
+    @_piped item
+      .pipe [apply_timestamps, apply_identifier]
+      .pipe (item) -> assign params, Item: item
       .pipe map_params condition_mapping
-      .pipe apply_table @name
+      .pipe apply_table
       .pipe (params) => @_request 'put', params
       .pipe -> item
 
   put_all: (items) ->
-    params = RequestItems: {}
-    items = map items, (item) =>
-      item = assign {}, item
-      apply_timestamps.apply @, [item] if @auto_timestamps
-      apply_identifier.apply @, [item] if @hash_key == 'identifier'
-    params.RequestItems[@name] = (PutRequest: Item: item for item in items)
-    @_request('batchWrite', params, false).then (results) ->
-      items
+    new_items = []
+    @_piped items
+      .map [clone, apply_timestamps, apply_identifier]
+      .pipe (items) =>
+        new_items = items
+        params = RequestItems: {}
+        params.RequestItems[@name] = (PutRequest: Item: item for item in items)
+        params
+      .pipe (params) => @_request 'batchWrite', params
+      .pipe -> new_items
 
   insert: (item, params={}) ->
     item = assign {}, item
-    pipeline.source item
-      .pipe apply_identifier @hash_key, @key_size
+    @_piped item
+      .pipe apply_identifier
       .pipe (item) ->
         assign params, condition: 'identifier <> :identifier', values: {':identifier': item.identifier}
       .pipe => @put item, params
 
   update: (keys..., params) ->
-    params = @_keyed_params keys, params, update_mapping
-    params.ReturnValues ?=  'ALL_NEW'
-    @_request('update', params).then (result) ->
-      result.Attributes
+    @_piped @_keyed_params keys, params
+      .pipe map_params update_mapping
+      .pipe apply_table
+      .pipe (params) ->
+        params.ReturnValues ?=  'ALL_NEW'
+        params
+      .pipe (params) => @_request 'update', params
+      .pipe (result) -> result.Attributes
 
   get: (keys..., params) ->
-    params = @_keyed_params keys, params, projection_mapping
-    @_request('get', params).then (result) ->
-      result?.Item
+    @_piped @_keyed_params keys, params
+      .pipe map_params projection_mapping
+      .pipe apply_table
+      .pipe (params) => @_request 'get', params
+      .pipe (result) -> result?.Item
 
   delete: (keys..., params) ->
-    params = @_keyed_params keys, params, condition_mapping
-    @_request 'delete', params
+    @_piped @_keyed_params keys, params
+      .pipe map_params condition_mapping
+      .pipe apply_table
+      .pipe (params) => @_request 'delete', params
 
-  query: (params={}) ->
-    pipeline.source params
+  query: (key_condition, params={}) ->
+    @_piped params
+      .pipe (params) -> assign params, {key_condition}
       .pipe map_params query_mapping
-      .pipe apply_table @name
-      .pipe (params) => @_request 'query', params
+      .pipe apply_table
+      .pipe (params) =>
+        @_request 'query', params
       .pipe (results) -> results?.Items or []
 
-  query_single: (params={}) ->
-    @query(params).pipe (result) ->
-      result[0]
+  query_single: (key_condition, params={}) ->
+    @query(key_condition, params).pipe (result) -> result[0]
 
-  scan: (params={}) ->
-    pipeline.source params
+  scan: (filter, params) ->
+    [filter, params] = [undefined, filter] unless params?
+    @_piped params or {}
+      .pipe (params) -> assign params, {filter}
       .pipe map_params scan_mapping
-      .pipe apply_table @name
+      .pipe apply_table
       .pipe (params) => @_request 'scan', params
       .pipe (results) -> results?.Items or []
 
+  all: (params) -> @scan undefined, params
 
   for_keys: (keys) ->
     pipeline.source keys
-      .split()
-        .pipe (key) => key_for key, @hash_key, @range_key
-      .join()
+      .map (key) => key_for key, @hash_key, @range_key
       .pipe (keys) =>
         params = RequestItems: {}
         params.RequestItems[@name] = Keys: keys
@@ -139,11 +144,13 @@ class Model
 
   _key_for: (key) -> key_for key, @hash_key, @range_key
 
-  _keyed_params: (keys, params, mapping) ->
+  _keyed_params: (keys, params) ->
     [key, params] = key_and_params keys, params
-    params = map_parameters params, mapping
     params.Key = @_key_for key
     params
+
+  _piped: (source) ->
+    pipeline.source(source).context @
 
   @model: (name, extension={}) ->
     new @ name, extension
@@ -160,6 +167,6 @@ class Model
       parts.push "##{name} = :#{name}"
       names["##{name}"] = name
       values[":#{name}"] = value
-    {expression: "#{set_exp} #{parts.join(', ')}", names, values}
+    {update: "#{set_exp} #{parts.join(', ')}", names, values}
 
 module.exports = Model
