@@ -34,7 +34,8 @@
   "dependencies": {
     "keygen": "~0.2.0",
     "aws-sdk": "~2.7.0",
-    "lodash": "~4.17.0"
+    "lodash": "~4.17.0",
+    "ppl": "~0.1.2"
   },
   "devDependencies": {
     "async": "^2.0.1",
@@ -51,7 +52,6 @@
     "sinon": "^1.14.0",
     "mocha": "^2.1.0",
     "mockery": "^2.0.0",
-    "local-dynamo": "0.4.1",
-    "promise": "~7.1.1"
+    "local-dynamo": "0.4.1"
   }
 }

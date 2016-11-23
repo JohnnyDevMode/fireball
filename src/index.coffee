@@ -1,9 +1,8 @@
-Promise = require 'promise'
 keygen = require 'keygen'
 aws = require 'aws-sdk'
 {assign, isArray, isObject, cloneDeep} = require 'lodash'
 {map_parameters, expression_names, expression_values, key_and_params, key_for} = require './utils'
-pipeline = require './pipeline'
+Pipeline = require 'ppl'
 
 expression_mapping =
   names: (key, value) ->
@@ -125,7 +124,7 @@ class Model
   all: (params) -> @scan undefined, params
 
   for_keys: (keys) ->
-    pipeline.source keys
+    @_piped keys
       .map (key) => key_for key, @hash_key, @range_key
       .pipe (keys) =>
         params = RequestItems: {}
@@ -136,7 +135,7 @@ class Model
       .map @post_read_hook
 
   _request: (method, params) ->
-    new pipeline.Promise (resolve, reject) =>
+    new Pipeline (resolve, reject) =>
       @doc_client[method] params, (err, result) ->
         return reject(err) if err?
         resolve result
@@ -147,7 +146,7 @@ class Model
     params
 
   _piped: (source) ->
-    pipeline.source(source).context @
+    Pipeline.source(source).context @
 
   @model: (name, extension={}) ->
     new @ name, extension

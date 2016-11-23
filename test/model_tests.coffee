@@ -1,7 +1,7 @@
 Model = require '../src'
 keygen = require 'keygen'
 {omit} = require 'lodash'
-pipeline = require '../src/pipeline'
+pipeline = require 'ppl'
 
 describe 'Model Tests', ->
 
