@@ -52,7 +52,6 @@ describe 'Model Tests', ->
       test_model.name.should.eql 'table_one'
       test_model.foo.should.eql 'bar'
 
-
   describe 'instance', ->
 
     model = undefined
@@ -676,8 +675,8 @@ describe 'Model Tests', ->
           values: 'identifier': 'not to be found'
         model.put_all([item1, item2])
           .then ->
-            model.query('#identifier = :identifier', params).then (result) ->
-              result.length.should.eql 0
+            model.query('#identifier = :identifier', params).then (results) ->
+              results.length.should.eql 0
               done()
           .catch done
 

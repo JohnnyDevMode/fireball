@@ -1,35 +1,6 @@
-{curryRight, isFunction, isArray, isObject} = require 'lodash'
-
-ensure_prefix = (params, prefix) ->
-  results = {}
-  for key, value of params
-    key = "#{prefix}#{key}" unless key.startsWith(prefix)
-    results[key] = value
-  results
-
-curried = curryRight ensure_prefix
-
-map_parameters = (params, mapping) ->
-  result = {}
-  for key, value of params
-    mapper = mapping[key]
-    if mapper?
-      mapped = {key: mapper, value}
-      mapped = mapper key, value if isFunction mapper
-      result[mapped.key] = mapped.value
-    else
-      result[key] = value
-  result
+{isArray, isObject} = require 'lodash'
 
 module.exports =
-
-  map_parameters: map_parameters
-
-  ensure_prefix: ensure_prefix
-
-  expression_names: curried('#')
-
-  expression_values: curried(':')
 
   key_and_params: (key, params={}) ->
     unless isObject params

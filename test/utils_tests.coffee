@@ -2,59 +2,6 @@ utils = require '../src/utils'
 
 describe 'Utils Tests', ->
 
-  describe '.ensure_prefix', ->
-
-    it 'should prefix params', ->
-      params = param: 'value', param2: 'value2'
-      actual = utils.ensure_prefix params, '-'
-      actual.should.eql '-param': 'value', '-param2': 'value2'
-
-    it 'should not double prefix params', ->
-      params = '-param': 'value', '-param2': 'value2'
-      actual = utils.ensure_prefix params, '-'
-      actual.should.eql '-param': 'value', '-param2': 'value2'
-
-  describe '.expression_names', ->
-
-    it 'should prefix names', ->
-      params = param: 'value', param2: 'value2'
-      actual = utils.expression_names params
-      actual.should.eql '#param': 'value', '#param2': 'value2'
-
-    it 'should not double prefix names', ->
-      params = '#param': 'value', '#param2': 'value2'
-      actual = utils.expression_names params
-      actual.should.eql '#param': 'value', '#param2': 'value2'
-
-  describe '.expression_values', ->
-
-    it 'should prefix values', ->
-      params = param: 'value', param2: 'value2'
-      actual = utils.expression_values params
-      actual.should.eql ':param': 'value', ':param2': 'value2'
-
-    it 'should not double prefix names', ->
-      params = ':param': 'value', ':param2': 'value2'
-      actual = utils.expression_values params
-      actual.should.eql ':param': 'value', ':param2': 'value2'
-
-  describe '.map_parameters', ->
-
-    it 'should map param keys', ->
-      params = param: 'value', param2: 'value2'
-      actual = utils.map_parameters params, param: 'ParamOne', param2: 'ParamTwo'
-      actual.should.eql ParamOne: 'value', ParamTwo: 'value2'
-
-    it 'should map param values when value mapper present', ->
-      params = param: 'value', param2: 'value2'
-      mapping =
-        param: (key, value) ->
-          key: 'ParamOne'
-          value: "New-#{value}"
-        param2: 'ParamTwo'
-      actual = utils.map_parameters params, mapping
-      actual.should.eql ParamOne: 'New-value', ParamTwo: 'value2'
-
   describe '.key_and_params', ->
 
     it 'should handle simple key no params', ->
