@@ -1,6 +1,6 @@
 keygen = require 'keygen'
 aws = require 'aws-sdk'
-{assign, cloneDeep, omit} = require 'lodash'
+{assign, cloneDeep, omit, pick} = require 'lodash'
 KeySchema = require './key_schema'
 {map_parameters} = require './param_mapper'
 Pipeline = require 'ppl'
@@ -17,14 +17,15 @@ process_results = (results) ->
   items = results?.Items or []
   items.last_key = results?.LastEvaluatedKey
   items
+key_overides = ['hash_key', 'range_key', 'key_size', 'generate_hash_key']
 
 class Model
 
   constructor: (@name, extension={}) ->
     @doc_client = new aws.DynamoDB.DocumentClient()
-    @key_schema = new KeySchema extension.hash_key, extension.range_key, extension.key_size
+    @key_schema = new KeySchema pick(extension, key_overides)
     @auto_timestamps = true
-    @[prop] = value for prop, value of omit(extension, 'hash_key', 'range_key', 'key_size')
+    @[prop] = value for prop, value of omit(extension, key_overides)
 
   put: (item, params={}) ->
     item = assign {}, item

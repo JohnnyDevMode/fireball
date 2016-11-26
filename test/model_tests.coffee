@@ -9,7 +9,7 @@ describe 'Model Tests', ->
     @timeout 20000
     clean_db done
 
-  describe.only 'constructor', ->
+  describe 'constructor', ->
 
     it 'it should construct with name', ->
       model = new Model 'table_one'
@@ -27,13 +27,15 @@ describe 'Model Tests', ->
       model.key_schema.should.not.be.null
 
     it 'should pass key elements to key schema', ->
-      model = new Model 'table_one', hash_key: 'some_key', range_key: 'some_other_key', key_size: keygen.small
-      model.key_schema.hash_key.should.eql 'some_key'
-      model.key_schema.range_key.should.eql 'some_other_key'
-      model.key_schema.key_size.should.eql keygen.small
+      model = new Model 'table_one', hash_key: 'some_key', range_key: 'some_other_key', key_size: keygen.small, generate_hash_key: false
+      model.key_schema.hash.should.eql 'some_key'
+      model.key_schema.range.should.eql 'some_other_key'
+      model.key_schema.size.should.eql keygen.small
+      model.key_schema.auto.should.eql false
       model.should.not.have.property 'hash_key'
       model.should.not.have.property 'range_key'
       model.should.not.have.property 'key_size'
+      model.should.not.have.property 'generate_hash_key'
 
 
   describe '#model', ->
@@ -123,9 +125,9 @@ describe 'Model Tests', ->
           .then -> done()
           .catch done
 
-      it 'should not add identifier for other hash_key', (done) ->
+      it 'should not add identifier without auto hash_key', (done) ->
         item = foo: 'bar', baz: 'quk'
-        model.key_schema.hash_key = 'not_identifier'
+        model.key_schema.auto = false
         model._request = (method, params) ->
           params.Item.should.not.have.property 'identifier'
           Promise.resolve()
