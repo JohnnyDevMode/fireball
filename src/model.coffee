@@ -1,9 +1,9 @@
-keygen = require 'keygen'
 aws = require 'aws-sdk'
 {assign, cloneDeep, omit, pick} = require 'lodash'
+Pipeline = require 'ppl'
 KeySchema = require './key_schema'
 {map_parameters} = require './param_mapper'
-Pipeline = require 'ppl'
+Instance = require './instance'
 
 apply_timestamps = (item) ->
   return item unless @auto_timestamps
@@ -24,6 +24,7 @@ class Model
   constructor: (@name, extension={}) ->
     @doc_client = new aws.DynamoDB.DocumentClient()
     @key_schema = new KeySchema pick(extension, key_overides)
+    @instance_type = Instance.extend_with @
     @auto_timestamps = true
     @[prop] = value for prop, value of omit(extension, key_overides)
 
@@ -37,6 +38,7 @@ class Model
       .pipe (params) => @_request 'put', params
       .pipe -> item
       .pipe @post_read_hook
+      .pipe @wrap
 
   put_all: (items) ->
     new_items = []
@@ -50,6 +52,7 @@ class Model
       .pipe (params) => @_request 'batchWrite', params
       .pipe -> new_items
       .map @post_read_hook
+      .map @wrap
 
   insert: (item, params={}) ->
     item = assign {}, item
@@ -76,6 +79,7 @@ class Model
       .pipe (params) => @_request 'get', params
       .pipe (result) -> result?.Item
       .pipe @post_read_hook
+      .pipe @wrap
 
   delete: (hash_key, range_key, params) ->
     @_piped @key_schema.keyed_params(hash_key, range_key, params)
@@ -91,6 +95,7 @@ class Model
       .pipe (params) => @_request 'query', params
       .pipe process_results
       .map @post_read_hook
+      .map @wrap
 
   query_single: (key_condition, params={}) ->
     @query(key_condition, params).pipe (result) -> result[0]
@@ -104,6 +109,7 @@ class Model
       .pipe (params) => @_request 'scan', params
       .pipe process_results
       .map @post_read_hook
+      .map @wrap
 
   all: (params) -> @scan undefined, params
 
@@ -117,6 +123,11 @@ class Model
       .pipe (params) => @_request 'batchGet', params
       .pipe (results) => results.Responses[@name]
       .map @post_read_hook
+      .map @wrap
+
+  wrap: (item) ->
+    return item if item?.constructor?.model?
+    new @instance_type item
 
   _request: (method, params) ->
     new Pipeline (resolve, reject) =>

@@ -1,6 +1,6 @@
 Model = require '../src'
 keygen = require 'keygen'
-{omit} = require 'lodash'
+{pick, omit} = require 'lodash'
 pipeline = require 'ppl'
 
 describe 'Model Tests', ->
@@ -9,7 +9,7 @@ describe 'Model Tests', ->
     @timeout 20000
     clean_db done
 
-  describe 'constructor', ->
+  describe '@constructor', ->
 
     it 'it should construct with name', ->
       model = new Model 'table_one'
@@ -37,8 +37,12 @@ describe 'Model Tests', ->
       model.should.not.have.property 'key_size'
       model.should.not.have.property 'generate_hash_key'
 
+    it 'should create instance type', ->
+      model = new Model 'table_one'
+      model.should.have.property 'instance_type'
+      model.instance_type.model.should.eql model
 
-  describe '#model', ->
+  describe '@model', ->
 
     it 'should attach exports to context', ->
       context = {}
@@ -46,7 +50,7 @@ describe 'Model Tests', ->
       model.name.should.eql 'table_one'
       model.foo.should.eql 'bar'
 
-  describe '#extend', ->
+  describe '@extend', ->
 
     it 'should attach exports to context', ->
       context = {}
@@ -153,7 +157,7 @@ describe 'Model Tests', ->
             item.should.not.be.null
             model.scan().then (items) ->
               items.length.should.eql 1
-              items[0].should.eql item
+              pick(items[0], 'identifier', 'foo', 'baz').should.eql item
               done()
           .catch done
 
@@ -166,6 +170,15 @@ describe 'Model Tests', ->
             .catch (err) ->
               err.should.not.be.null
               done()
+
+      it 'should warp result in instance', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        model.put(item)
+          .then (item) ->
+            item.should.not.be.null
+            item.should.have.property 'put'
+            done()
+          .catch done
 
       describe 'auto_timestamps', ->
 
@@ -464,7 +477,7 @@ describe 'Model Tests', ->
           method.should.eql 'get'
           params.should.have.property 'Key'
           params.Key.should.eql key
-          Promise.resolve()
+          Promise.resolve Item: key
         model.get(key)
           .then -> done()
           .catch done
@@ -479,7 +492,7 @@ describe 'Model Tests', ->
           params.ProjectionExpression.should.eql projection_params.projection
           params.should.have.property 'ExpressionAttributeNames'
           params.ExpressionAttributeNames.should.eql projection_params.names
-          Promise.resolve()
+          Promise.resolve Item: key
         model.get(key, projection_params)
           .then -> done()
           .catch done
@@ -502,7 +515,7 @@ describe 'Model Tests', ->
           .then ->
             model.get(key).then (actual)->
               actual.should.not.be.null
-              actual.should.eql item
+              pick(actual, 'identifier', 'foo', 'baz').should.eql item
               done()
           .catch done
 
@@ -512,7 +525,7 @@ describe 'Model Tests', ->
           .then ->
             model.get('12312').then (actual)->
               actual.should.not.be.null
-              actual.should.eql item
+              pick(actual, 'identifier', 'foo', 'baz').should.eql item
               done()
           .catch done
 
@@ -523,7 +536,7 @@ describe 'Model Tests', ->
           .then ->
             model.get('12312', 'bar').then (actual) ->
               actual.should.not.be.null
-              actual.should.eql item
+              pick(actual, 'identifier', 'range_key').should.eql item
               done()
           .catch done
 
@@ -546,6 +559,16 @@ describe 'Model Tests', ->
           .then ->
             model.get(key).then (actual)->
               called.should.eql true
+              done()
+          .catch done
+
+      it 'should create insnace', (done) ->
+        item = identifier: '12312', foo: 'bar', baz: 'quk'
+        key = identifier: '12312'
+        model.put(item)
+          .then ->
+            model.get(key).then (actual) ->
+              actual.should.have.property 'put'
               done()
           .catch done
 
@@ -671,7 +694,7 @@ describe 'Model Tests', ->
           .then ->
             model.query('#identifier = :identifier', params).then (results) ->
               results.length.should.eql 1
-              results[0].should.eql item1
+              pick(results[0], 'identifier', 'foo', 'baz').should.eql item1
               done()
           .catch done
 
@@ -705,6 +728,21 @@ describe 'Model Tests', ->
               done()
           .catch done
 
+      it 'should wrap items in instance', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+        model.put_all([item1, item2])
+          .then ->
+            model.query('#identifier = :identifier', params).then (results) ->
+              results.length.should.eql 1
+              results[0].should.have.property 'put'
+              done()
+          .catch done
+
+
     describe '.query_single', ->
 
       it 'should proxy to query and return first item', (done) ->
@@ -717,7 +755,7 @@ describe 'Model Tests', ->
             done()
           .catch done
 
-      it 'should proxy to query hadnle empty results', (done) ->
+      it 'should proxy to query handle empty results', (done) ->
         model.query = (params) ->
           pipeline.source []
         model.query_single('identifier = :identifier', values: identifier: '1234')
@@ -750,7 +788,7 @@ describe 'Model Tests', ->
           .then ->
             model.query('#identifier = :identifier', params).then (results) ->
               results.length.should.eql 1
-              results[0].should.eql item1
+              pick(results[0], 'identifier', 'foo', 'baz').should.eql item1
               done()
           .catch done
 
@@ -830,7 +868,7 @@ describe 'Model Tests', ->
           .then ->
             model.scan('#foo = :foo', params).then (results) ->
               results.length.should.eql 1
-              results[0].should.eql item2
+              pick(results[0], 'identifier', 'foo', 'baz').should.eql item2
               done()
           .catch done
 
@@ -870,6 +908,18 @@ describe 'Model Tests', ->
               item
             model.scan().then (results) ->
               called.should.eql 2
+              done()
+          .catch done
+
+      it 'should handle scan with instances', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        key = identifier: '12312'
+        model.put_all([item1, item2])
+          .then ->
+            model.scan().then (results) ->
+              results[0].should.have.property 'put'
+              results[1].should.have.property 'put'
               done()
           .catch done
 
@@ -962,7 +1012,6 @@ describe 'Model Tests', ->
             error.should.eql 'some error'
             done()
 
-
       it 'should handle for keys', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'qak'
         item2 = identifier: '21321', foo: 'qak', baz: 'bar'
@@ -977,7 +1026,6 @@ describe 'Model Tests', ->
               results.length.should.eql 2
               done()
           .catch done
-
 
       it 'should call post_read_hook', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
@@ -995,5 +1043,23 @@ describe 'Model Tests', ->
               item
             model.for_keys(keys).then (results) ->
               called.should.eql 2
+              done()
+          .catch done
+
+
+      it 'should wrap with instaces', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        keys = [
+            {identifier: '12312'}
+            {identifier: '21321'}
+            {identifier: '43535'}
+        ]
+        model.put_all([item1, item2])
+          .then ->
+            model.for_keys(keys).then (results) ->
+              results.length.should.eql 2
+              results[0].should.have.property 'put'
+              results[1].should.have.property 'put'
               done()
           .catch done
