@@ -111,6 +111,7 @@ describe 'Model Tests', ->
       it 'should add identifier', (done) ->
         item = foo: 'bar', baz: 'quk'
         model._request = (method, params) ->
+          console.log params
           params.Item.should.have.property 'identifier'
           Promise.resolve()
         model.put(item)
@@ -119,7 +120,7 @@ describe 'Model Tests', ->
 
       it 'should not add identifier for other hash_key', (done) ->
         item = foo: 'bar', baz: 'quk'
-        model.hash_key = 'not_identifier'
+        model.key_schema.hash_key = 'not_identifier'
         model._request = (method, params) ->
           params.Item.should.not.have.property 'identifier'
           Promise.resolve()

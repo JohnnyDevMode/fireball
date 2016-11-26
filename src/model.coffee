@@ -1,7 +1,7 @@
 keygen = require 'keygen'
 aws = require 'aws-sdk'
-{assign, isObject, cloneDeep} = require 'lodash'
-{key_and_params, key_for} = require './utils'
+{assign, cloneDeep, omit} = require 'lodash'
+KeySchema = require './key_schema'
 {map_parameters} = require './param_mapper'
 Pipeline = require 'ppl'
 
@@ -12,7 +12,7 @@ apply_timestamps = (item) ->
   item.updated_at = now
   item
 apply_identifier = (item) ->
-  item.identifier = keygen.url @key_size if @hash_key == 'identifier' and not item.identifier?
+  item.identifier = keygen.url @key_size if @key_schema.hash_key == 'identifier' and not item.identifier?
   item
 apply_table = (params) -> assign params, TableName: @name
 process_results = (results) ->
@@ -25,10 +25,9 @@ class Model
   constructor: (@name, extension={}) ->
     @doc_client = new aws.DynamoDB.DocumentClient()
     @key_size = keygen.large
-    @hash_key = 'identifier'
-    @range_key = undefined
+    @key_schema = new KeySchema extension.hash_key, extension.range_key
     @auto_timestamps = true
-    @[prop] = value for prop, value of extension
+    @[prop] = value for prop, value of omit(extension, 'hash_key', 'range_key')
 
   put: (item, params={}) ->
     item = assign {}, item
@@ -62,8 +61,8 @@ class Model
         assign params, condition: 'identifier <> :identifier', values: {':identifier': item.identifier}
       .pipe => @put item, params
 
-  update: (keys..., params) ->
-    @_piped @_keyed_params keys, params
+  update: (hash_key, range_key, params) ->
+    @_piped @key_schema.keyed_params(hash_key, range_key, params)
       .pipe map_parameters
       .pipe apply_table
       .pipe (params) ->
@@ -72,16 +71,16 @@ class Model
       .pipe (params) => @_request 'update', params
       .pipe (result) -> result.Attributes
 
-  get: (keys..., params) ->
-    @_piped @_keyed_params keys, params
+  get: (hash_key, range_key, params) ->
+    @_piped @key_schema.keyed_params(hash_key, range_key, params)
       .pipe map_parameters
       .pipe apply_table
       .pipe (params) => @_request 'get', params
       .pipe (result) -> result?.Item
       .pipe @post_read_hook
 
-  delete: (keys..., params) ->
-    @_piped @_keyed_params keys, params
+  delete: (hash_key, range_key, params) ->
+    @_piped @key_schema.keyed_params(hash_key, range_key, params)
       .pipe map_parameters
       .pipe apply_table
       .pipe (params) => @_request 'delete', params
@@ -112,7 +111,7 @@ class Model
 
   for_keys: (keys) ->
     @_piped keys
-      .map (key) => key_for key, @hash_key, @range_key
+      .map (key) => @key_schema.key_for key
       .pipe (keys) =>
         params = RequestItems: {}
         params.RequestItems[@name] = Keys: keys
@@ -126,11 +125,6 @@ class Model
       @doc_client[method] params, (err, result) ->
         return reject(err) if err?
         resolve result
-
-  _keyed_params: (keys, params) ->
-    [key, params] = key_and_params keys, params
-    params.Key = key_for key, @hash_key, @range_key
-    params
 
   _piped: (source) ->
     Pipeline.source(source).context @
