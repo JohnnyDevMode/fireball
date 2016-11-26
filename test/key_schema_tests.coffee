@@ -1,6 +1,29 @@
 KeySchema = require '../src/key_schema'
+keygen = require 'keygen'
+
 
 describe 'Utils Tests', ->
+
+  describe '@constructor', ->
+
+    it 'should default hash_key and size', ->
+      schema = new KeySchema()
+      schema.hash_key.should.eql 'identifier'
+      schema.key_size.should.eql keygen.large
+
+    it 'should take hash_key and default size', ->
+      schema = new KeySchema 'some_key'
+      schema.hash_key.should.eql 'some_key'
+      schema.key_size.should.eql keygen.large
+
+    it 'should take hash_key and range and default size', ->
+      schema = new KeySchema 'some_key', 'other_key'
+      schema.range_key.should.eql 'other_key'
+      schema.key_size.should.eql keygen.large
+
+    it 'should take hash_keym range and size', ->
+      schema = new KeySchema 'some_key', 'other_key', keygen.small
+      schema.key_size.should.eql keygen.small
 
   describe '.keyed_params', ->
 

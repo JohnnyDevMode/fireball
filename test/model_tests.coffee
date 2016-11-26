@@ -9,15 +9,11 @@ describe 'Model Tests', ->
     @timeout 20000
     clean_db done
 
-  describe 'constructor', ->
+  describe.only 'constructor', ->
 
     it 'it should construct with name', ->
       model = new Model 'table_one'
       model.name.should.eql 'table_one'
-
-    it 'should default key size', ->
-      model = new Model 'table_one'
-      model.key_size.should.eql keygen.large
 
     it 'should apply extensions', ->
       model = new Model 'table_one', foo: 'bar', baz: 'qak'
@@ -26,9 +22,19 @@ describe 'Model Tests', ->
       model.should.have.property 'baz'
       model.baz.should.eql 'qak'
 
-    it 'should allow key size override', ->
-      model = new Model 'table_one', key_size: keygen.small
-      model.key_size.should.eql keygen.small
+    it 'should create key schema', ->
+      model = new Model 'table_one'
+      model.key_schema.should.not.be.null
+
+    it 'should pass key elements to key schema', ->
+      model = new Model 'table_one', hash_key: 'some_key', range_key: 'some_other_key', key_size: keygen.small
+      model.key_schema.hash_key.should.eql 'some_key'
+      model.key_schema.range_key.should.eql 'some_other_key'
+      model.key_schema.key_size.should.eql keygen.small
+      model.should.not.have.property 'hash_key'
+      model.should.not.have.property 'range_key'
+      model.should.not.have.property 'key_size'
+
 
   describe '#model', ->
 
@@ -108,10 +114,9 @@ describe 'Model Tests', ->
           .then -> done()
           .catch done
 
-      it 'should add identifier', (done) ->
+      it 'should generate hash_key', (done) ->
         item = foo: 'bar', baz: 'quk'
         model._request = (method, params) ->
-          console.log params
           params.Item.should.have.property 'identifier'
           Promise.resolve()
         model.put(item)

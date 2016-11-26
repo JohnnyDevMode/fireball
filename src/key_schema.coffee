@@ -1,9 +1,11 @@
 {isArray, isObject} = require 'lodash'
+keygen = require 'keygen'
 
 module.exports = class KeySchema
 
-  constructor: (@hash_key, @range_key) ->
+  constructor: (@hash_key, @range_key, @key_size) ->
     @hash_key ?= 'identifier'
+    @key_size ?= keygen.large
 
   keyed_params: (hash_value, range_value, params) ->
     if isObject hash_value  # Assume a full key object
@@ -28,3 +30,7 @@ module.exports = class KeySchema
     else
       key[@hash_key] = item
     key
+
+  generate_for: (item) ->
+    item[@hash_key] = keygen.url @key_size unless item[@hash_key]?
+    item

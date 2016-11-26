@@ -23,14 +23,3 @@ for func in ['put', 'delete', 'update']
     Instance::[func] = (params) -> @constructor.model[func] @, params
 
 module.exports = Instance
-
-
-#
-# Instance.model = {name: "something"}
-#
-# ChildInstance = class extends Instance
-# ChildInstance::name = 'Childish'
-#
-# test = new ChildInstance foo: 'bar'
-#
-# console.log "#{test}"

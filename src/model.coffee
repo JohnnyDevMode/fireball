@@ -11,9 +11,7 @@ apply_timestamps = (item) ->
   item.created_at = now unless item.created_at?
   item.updated_at = now
   item
-apply_identifier = (item) ->
-  item.identifier = keygen.url @key_size if @key_schema.hash_key == 'identifier' and not item.identifier?
-  item
+apply_identifier = (item) -> @key_schema.generate_for item
 apply_table = (params) -> assign params, TableName: @name
 process_results = (results) ->
   items = results?.Items or []
@@ -24,10 +22,9 @@ class Model
 
   constructor: (@name, extension={}) ->
     @doc_client = new aws.DynamoDB.DocumentClient()
-    @key_size = keygen.large
-    @key_schema = new KeySchema extension.hash_key, extension.range_key
+    @key_schema = new KeySchema extension.hash_key, extension.range_key, extension.key_size
     @auto_timestamps = true
-    @[prop] = value for prop, value of omit(extension, 'hash_key', 'range_key')
+    @[prop] = value for prop, value of omit(extension, 'hash_key', 'range_key', 'key_size')
 
   put: (item, params={}) ->
     item = assign {}, item
