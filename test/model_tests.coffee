@@ -66,10 +66,11 @@ describe 'Model Tests', ->
 
   describe 'instance', ->
 
-    model = undefined
+    model = model_two = undefined
 
     beforeEach ->
       model = new Model 'table_one'
+      model_two = new Model 'table_two', range_key: 'range_key'
 
     describe '.put', ->
 
@@ -711,6 +712,47 @@ describe 'Model Tests', ->
               done()
           .catch done
 
+      it 'should handle query limit', (done) ->
+        item1 = identifier: '12312', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+          limit: 1
+        model_two.put_all([item1, item2, item3, item4])
+          .then ->
+            model_two.query('#identifier = :identifier', params).then (results) ->
+              results.length.should.eql 1
+              done()
+          .catch done
+
+      it 'should handle query limit and paging', (done) ->
+        item1 = identifier: '12312', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+          limit: 1
+        model_two.put_all([item1, item2, item3, item4])
+          .then ->
+            model_two.query('#identifier = :identifier', params).then (results) ->
+              results.length.should.eql 1
+              pick(results[0], 'identifier', 'range_key', 'foo', 'baz').should.eql item1
+              results.should.have.property 'last_key'
+              results.should.have.property 'next'
+              results.next().then (results) =>
+                results.length.should.eql 1
+                pick(results[0], 'identifier', 'range_key', 'foo', 'baz').should.eql item3
+                results.next()
+                  .then (results) =>
+                    results.length.should.eql 0
+                    done()
+          .catch done
+
       it 'should call post_read_hook', (done) ->
         item1 = identifier: '12312', foo: 'bar', baz: 'quk'
         item2 = identifier: '21321', foo: 'bar', baz: 'quk'
@@ -742,13 +784,15 @@ describe 'Model Tests', ->
               done()
           .catch done
 
-
     describe '.query_single', ->
 
       it 'should proxy to query and return first item', (done) ->
-        model.query = (params) ->
+        key_condition = 'identifier = :identifier'
+        model.query = (condition, params) ->
+          condition.should.eql key_condition
+          params.limit.should.eql 1
           pipeline.source [{identifier: 'item1'}, {identifier: 'item2'}]
-        model.query_single('identifier = :identifier',  values: ':identifier': '1234')
+        model.query_single(key_condition, values: ':identifier': '1234')
           .then (item) ->
             item.should.not.be.nil
             item.identifier.should.eql 'item1'
@@ -804,6 +848,34 @@ describe 'Model Tests', ->
               expect(result).to.be.nil
               done()
           .catch done
+
+    describe '.query_complete', ->
+
+      it 'should handle query and consume all pages', (done) ->
+        item1 = identifier: '12312', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+          limit: 1
+        model_two.put_all([item1, item2, item3, item4])
+          .then ->
+            model_two.query_complete('#identifier = :identifier', params).then (results) ->
+              results.length.should.eql 2
+              done()
+          .catch done
+
+      it 'should handle empty query', (done) ->
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': '1234'
+          limit: 1
+        model_two.query_complete('#identifier = :identifier', params).then (results) ->
+          results.length.should.eql 0
+          done()
+        .catch done
 
     describe '.scan', ->
 
@@ -895,6 +967,21 @@ describe 'Model Tests', ->
             model.scan(limit: 1).then (results) ->
               results.length.should.eql 1
               done()
+          .catch done
+
+      it 'should handle scan with limit and paging', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        key = identifier: '12312'
+        model.put_all([item1, item2])
+          .then ->
+            model.scan(limit: 1).then (results) ->
+              results.length.should.eql 1
+              results.next().then (results) ->
+                results.length.should.eql 1
+                results.next().then (results) ->
+                  results.length.should.eql 0
+                  done()
           .catch done
 
       it 'should call post_read_hook', (done) ->

@@ -12,12 +12,27 @@ apply_timestamps = (item) ->
   item.created_at = now unless item.created_at?
   item.updated_at = now
   item
+
 apply_identifier = (item) -> @key_schema.generate_for item
+
 apply_table = (params) -> assign params, TableName: @name
+
 process_results = (results) ->
-  items = results?.Items or []
-  items.last_key = results?.LastEvaluatedKey
-  items
+  Pipeline
+    .source results?.Items
+    .context @
+    .map [@post_read_hook, @wrap]
+    .then (processed) ->
+      processed.last_key = results?.LastEvaluatedKey
+      if processed.last_key?
+        params = assign {}, results.params, ExclusiveStartKey: processed.last_key
+        model = @
+        processed.next = =>
+          @_piped(params)
+            .pipe (params) => @_request results.method, params
+            .pipe process_results
+      processed
+
 key_overides = ['hash_key', 'range_key', 'key_size', 'generate_hash_key']
 
 class Model
@@ -87,10 +102,18 @@ class Model
       .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'query', params
       .pipe process_results
-      .map [@post_read_hook, @wrap]
 
   query_single: (key_condition, params={}) ->
+    params.limit = 1
     @query(key_condition, params).pipe (result) -> result[0]
+
+  query_complete: (key_condition, params={}) ->
+    results = []
+    process = (page) ->
+      results = results.concat page
+      return page.next().pipe process if page.next?
+      Pipeline.resolve results
+    @query(key_condition, params).pipe process
 
   scan: (filter, params) ->
     [filter, params] = [undefined, filter] unless params?
@@ -99,7 +122,6 @@ class Model
       .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'scan', params
       .pipe process_results
-      .map [@post_read_hook, @wrap]
 
   all: (params) -> @scan undefined, params
 
@@ -122,7 +144,7 @@ class Model
     new Pipeline (resolve, reject) =>
       @doc_client[method] params, (err, result) ->
         return reject(err) if err?
-        resolve result
+        resolve assign {}, result, {params, method}
 
   _piped: (source) ->
     Pipeline.source(source).context @
