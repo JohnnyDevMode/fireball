@@ -35,7 +35,7 @@
     "keygen": "~0.2.0",
     "aws-sdk": "~2.7.0",
     "lodash": "~4.17.0",
-    "ppl": "~0.1.4"
+    "ppl": "~0.1.5"
   },
   "devDependencies": {
     "async": "^2.0.1",

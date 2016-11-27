@@ -4,6 +4,7 @@ Pipeline = require 'ppl'
 KeySchema = require './key_schema'
 {map_parameters} = require './param_mapper'
 Instance = require './instance'
+update_builder = require './update_builder'
 
 apply_timestamps = (item) ->
   return item unless @auto_timestamps
@@ -33,12 +34,10 @@ class Model
     @_piped item
       .pipe [apply_timestamps, apply_identifier, @pre_write_hook]
       .pipe (item) -> assign params, Item: item
-      .pipe map_parameters
-      .pipe apply_table
+      .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'put', params
       .pipe -> item
-      .pipe @post_read_hook
-      .pipe @wrap
+      .pipe [@post_read_hook, @wrap]
 
   put_all: (items) ->
     new_items = []
@@ -51,8 +50,7 @@ class Model
         params
       .pipe (params) => @_request 'batchWrite', params
       .pipe -> new_items
-      .map @post_read_hook
-      .map @wrap
+      .map [@post_read_hook, @wrap]
 
   insert: (item, params={}) ->
     item = assign {}, item
@@ -64,8 +62,7 @@ class Model
 
   update: (hash_key, range_key, params) ->
     @_piped @key_schema.keyed_params(hash_key, range_key, params)
-      .pipe map_parameters
-      .pipe apply_table
+      .pipe [map_parameters, apply_table]
       .pipe (params) ->
         params.ReturnValues ?=  'ALL_NEW'
         params
@@ -74,28 +71,23 @@ class Model
 
   get: (hash_key, range_key, params) ->
     @_piped @key_schema.keyed_params(hash_key, range_key, params)
-      .pipe map_parameters
-      .pipe apply_table
+      .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'get', params
       .pipe (result) -> result?.Item
-      .pipe @post_read_hook
-      .pipe @wrap
+      .pipe [@post_read_hook, @wrap]
 
   delete: (hash_key, range_key, params) ->
     @_piped @key_schema.keyed_params(hash_key, range_key, params)
-      .pipe map_parameters
-      .pipe apply_table
+      .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'delete', params
 
   query: (key_condition, params={}) ->
     @_piped params
       .pipe (params) -> assign params, {key_condition}
-      .pipe map_parameters
-      .pipe apply_table
+      .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'query', params
       .pipe process_results
-      .map @post_read_hook
-      .map @wrap
+      .map [@post_read_hook, @wrap]
 
   query_single: (key_condition, params={}) ->
     @query(key_condition, params).pipe (result) -> result[0]
@@ -104,12 +96,10 @@ class Model
     [filter, params] = [undefined, filter] unless params?
     @_piped params or {}
       .pipe (params) -> assign params, {filter}
-      .pipe map_parameters
-      .pipe apply_table
+      .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'scan', params
       .pipe process_results
-      .map @post_read_hook
-      .map @wrap
+      .map [@post_read_hook, @wrap]
 
   all: (params) -> @scan undefined, params
 
@@ -122,8 +112,7 @@ class Model
         params
       .pipe (params) => @_request 'batchGet', params
       .pipe (results) => results.Responses[@name]
-      .map @post_read_hook
-      .map @wrap
+      .map [@post_read_hook, @wrap]
 
   wrap: (item) ->
     return item if item?.constructor?.model?
@@ -144,15 +133,6 @@ class Model
   @extend: (module, name, extension={}) ->
     module.exports = @model name, extension
 
-  @update_builder: (item) ->
-    set_exp = 'set '
-    names = {}
-    values = {}
-    parts = []
-    for name, value of item
-      parts.push "##{name} = :#{name}"
-      names["##{name}"] = name
-      values[":#{name}"] = value
-    {update: "#{set_exp} #{parts.join(', ')}", names, values}
+  @update_builder: update_builder
 
 module.exports = Model
