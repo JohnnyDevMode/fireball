@@ -1,6 +1,6 @@
 {
   "name": "fireball-db",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "a lightweight model wrapper for DynamoDB",
   "keywords": [
     "DynamoDb",

@@ -1150,3 +1150,19 @@ describe 'Model Tests', ->
               results[1].should.have.property 'put'
               done()
           .catch done
+
+
+    describe '.wrap', ->
+
+      it 'should not wrap undefined', ->
+        expect(model.wrap(undefined)).to.eql undefined
+
+      it 'should wrap item', ->
+        wrapped = model.wrap foo: 'bar'
+        wrapped.should.not.be.null
+        wrapped.foo.should.eql 'bar'
+
+      it 'should not doulbe wrap item', ->
+        wrapped1 = model.wrap foo: 'bar'
+        wrapped2 = model.wrap wrapped1
+        wrapped2.should.eql wrapped1

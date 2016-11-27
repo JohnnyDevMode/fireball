@@ -137,7 +137,7 @@ class Model
       .map [@post_read_hook, @wrap]
 
   wrap: (item) ->
-    return item if item?.constructor?.model?
+    return item if not item? or item?.constructor?.model?
     new @instance_type item
 
   _request: (method, params) ->
