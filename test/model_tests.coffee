@@ -250,6 +250,19 @@ describe 'Model Tests', ->
               done()
             .catch done
 
+        it 'should support hooks with promises', (done) ->
+          item = identifier: '12312', foo: 'bar', baz: 'qak'
+          model.pre_write_hook = (item) ->
+            return new Promise (fulfill, reject) ->
+              item.updated = true
+              next = -> fulfill item
+              setTimeout next, 50
+          model.put(item)
+            .then (after) ->
+              after.should.have.property 'updated'
+              done()
+            .catch done
+
     describe '.put_all', ->
 
       it 'should proxy put and create params', (done) ->
@@ -993,6 +1006,22 @@ describe 'Model Tests', ->
             model.post_read_hook = (item) ->
               called++
               item
+            model.scan().then (results) ->
+              called.should.eql 2
+              done()
+          .catch done
+
+      it 'should call post_read_hook with promise', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', foo: 'bar', baz: 'quk'
+        model.put_all([item1, item2])
+          .then ->
+            called = 0
+            model.post_read_hook = (item) ->
+              new Promise (fulfill, reject) ->
+                called++
+                item.update = true
+                fulfill item
             model.scan().then (results) ->
               called.should.eql 2
               done()
