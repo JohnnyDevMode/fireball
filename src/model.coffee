@@ -46,12 +46,15 @@ class Model
 
   put: (item, params={}) ->
     item = assign {}, item
+    final_item = undefined
     @_piped item
       .pipe [apply_timestamps, apply_identifier, @pre_write_hook]
-      .pipe (item) -> assign params, Item: item
+      .pipe (item) ->
+        final_item = item
+        assign params, Item: item
       .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'put', params
-      .pipe -> item
+      .pipe -> final_item
       .pipe [@post_read_hook, @wrap]
 
   put_all: (items) ->

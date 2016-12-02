@@ -1,6 +1,6 @@
 Model = require '../src'
 keygen = require 'keygen'
-{pick, omit} = require 'lodash'
+{assign, pick, omit} = require 'lodash'
 pipeline = require 'ppl'
 
 describe 'Model Tests', ->
@@ -262,6 +262,17 @@ describe 'Model Tests', ->
               after.should.have.property 'updated'
               done()
             .catch done
+
+        it 'should call pre_write_hook and respond with processed item', (done) ->
+          item = identifier: '12312'
+          model.pre_write_hook = (item) ->
+            assign {}, item, foo: 'bar'
+          model.put(item)
+            .then (after) ->
+              after.should.have.property 'foo'
+              done()
+            .catch done
+
 
     describe '.put_all', ->
 
