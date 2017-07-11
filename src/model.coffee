@@ -118,6 +118,13 @@ class Model
       Pipeline.resolve results
     @query(key_condition, params).pipe process
 
+  query_count: (key_condition, params={}) ->
+    @_piped params
+      .pipe (params) -> assign params, {key_condition, select: 'COUNT'}
+      .pipe [map_parameters, apply_table]
+      .pipe (params) => @_request 'query', params
+      .pipe (result) -> result.Count
+
   scan: (filter, params) ->
     [filter, params] = [undefined, filter] unless params?
     @_piped params or {}
