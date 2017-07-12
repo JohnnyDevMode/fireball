@@ -901,6 +901,74 @@ describe 'Model Tests', ->
           done()
         .catch done
 
+    describe '.query_count', ->
+
+      it 'return the correct item count', (done) ->
+        item1 = identifier: '12312', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+        model_two.put_all([item1, item2, item3, item4])
+          .then ->
+            model_two.query_count('#identifier = :identifier', params).then (count) ->
+              count.should.be.a('number')
+              count.should.eql 2
+              done()
+          .catch done
+
+      it 'should handle query limit', (done) ->
+        item1 = identifier: '12312', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': item1.identifier
+          limit: 1
+        model_two.put_all([item1, item2, item3, item4])
+          .then ->
+            model_two.query_count('#identifier = :identifier', params).then (count) ->
+              count.should.be.a('number')
+              count.should.eql 1
+              done()
+          .catch done
+
+      it 'should handle filter expression', (done) ->
+        item1 = identifier: '12312', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
+        item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'qak'
+        item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
+        params = 
+          names:
+            '#identifier': 'identifier'
+            '#baz': 'baz'
+          values:
+            ':identifier': '12312'
+            ':baz': 'qa'
+          filter: 'begins_with(#baz, :baz)'
+        model_two.put_all([item1, item2, item3, item4])
+          .then ->
+            model_two.query_count('#identifier = :identifier', params).then (count) ->
+              count.should.be.a('number')
+              count.should.eql 1
+              done()
+          .catch done
+
+      it 'should handle empty query', (done) ->
+        params =
+          names: '#identifier': 'identifier'
+          values: ':identifier': '1234'
+          limit: 1
+        model_two.query_count('#identifier = :identifier', params).then (count) ->
+          count.should.be.a('number')
+          count.should.eql 0
+          done()
+        .catch done
+
+
     describe '.scan', ->
 
       it 'should proxy scan and setup expression', (done) ->
