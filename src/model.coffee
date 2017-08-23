@@ -8,9 +8,9 @@ update_builder = require './update_builder'
 
 apply_timestamps = (item) ->
   return item unless @auto_timestamps
-  now = new Date()
+  now = new Date().toISOString()
   item.created_at = now unless item.created_at?
-  item.updated_at = now
+  item.updated_at = now unless item.updated_at?
   item
 
 apply_identifier = (item) -> @key_schema.generate_for item
@@ -132,6 +132,14 @@ class Model
       .pipe [map_parameters, apply_table]
       .pipe (params) => @_request 'scan', params
       .pipe process_results
+
+  scan_complete: (filter, params) ->
+    results = []
+    process = (page) ->
+      results = results.concat page
+      return page.next().pipe process if page.next?
+      Pipeline.resolve results
+    @scan(filter, params).pipe process
 
   all: (params) -> @scan undefined, params
 

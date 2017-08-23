@@ -1118,6 +1118,30 @@ describe 'Model Tests', ->
               done()
           .catch done
 
+    describe '.scan_complete', ->
+
+      it 'should handle scan with single page', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        key = identifier: '12312'
+        model.put_all([item1, item2])
+          .then ->
+            model.scan_complete().then (results) ->
+              results.length.should.eql 2
+              done()
+          .catch done
+
+      it 'should handle scan with multiple pages', (done) ->
+        item1 = identifier: '12312', foo: 'bar', baz: 'qak'
+        item2 = identifier: '21321', foo: 'qak', baz: 'bar'
+        key = identifier: '12312'
+        model.put_all([item1, item2])
+          .then ->
+            model.scan_complete(limit: 1).then (results) ->
+              results.length.should.eql 2
+              done()
+          .catch done
+
     describe '.all', ->
 
       it 'should proxy to scan', (done) ->
