@@ -8,9 +8,11 @@ update_builder = require './update_builder'
 
 apply_timestamps = (item) ->
   return item unless @auto_timestamps
-  now = new Date().toISOString()
+  now = new Date()
   item.created_at = now unless item.created_at?
   item.updated_at = now unless item.updated_at?
+  item.created_at = item.created_at.toISOString() if item.created_at instanceof Date
+  item.updated_at = item.updated_at.toISOString() if item.updated_at instanceof Date
   item
 
 apply_identifier = (item) -> @key_schema.generate_for item
@@ -44,7 +46,7 @@ class Model
     @auto_timestamps = true
     @[prop] = value for prop, value of omit(extension, key_overides)
 
-  put: (item, params={}) ->
+  put: (item, params={}) ->    
     item = assign {}, item
     final_item = undefined
     @_piped item
@@ -161,7 +163,12 @@ class Model
   _request: (method, params) ->
     new Pipeline (resolve, reject) =>
       @doc_client[method] params, (err, result) ->
-        return reject(err) if err?
+        if err?
+          error =
+            dynamo_error: err
+            method: method
+            params: params
+          return reject(error)
         resolve assign {}, result, {params, method}
 
   _piped: (source) ->

@@ -160,7 +160,9 @@ describe 'Model Tests', ->
               items.length.should.eql 1
               pick(items[0], 'identifier', 'foo', 'baz').should.eql item
               done()
-          .catch done
+          .catch (err) ->
+            console.log err
+            done(err)
 
       it 'should handle conditional put', (done) ->
         item = identifier: '12312', foo: 'bar', baz: 'qak'
@@ -208,16 +210,16 @@ describe 'Model Tests', ->
             model.auto_timestamps = true
             model.put(item)
               .then (after) ->
-                after.created_at.should.eql item.created_at
+                after.created_at.should.eql item.created_at.toISOString()
                 done()
               .catch done
 
-        it 'should override updated_at ', (done) ->
+        it 'should not override updated_at ', (done) ->
             item = identifier: '12312', foo: 'bar', baz: 'qak', updated_at: new Date(0)
             model.auto_timestamps = true
             model.put(item)
               .then (after) ->
-                after.updated_at.should.not.eql item.updated_at
+                after.updated_at.should.eql item.updated_at.toISOString()
                 done()
               .catch done
 
@@ -341,8 +343,8 @@ describe 'Model Tests', ->
             item2 = identifier: '2345', foo: 'bar', baz: 'qak', created_at: new Date()
             model.auto_timestamps = true
             model.put_all([item1, item2]).then (items) ->
-              items[0].created_at.should.eql item1.created_at
-              items[1].created_at.should.eql item2.created_at
+              items[0].created_at.should.eql item1.created_at.toISOString()
+              items[1].created_at.should.eql item2.created_at.toISOString()
               done()
 
         it 'should override updated_at ', (done) ->
@@ -350,8 +352,8 @@ describe 'Model Tests', ->
             item2 = identifier: '2345', foo: 'bar', baz: 'qak', updated_at: new Date(0)
             model.auto_timestamps = true
             model.put_all([item1, item2]).then (items) ->
-              items[0].updated_at.should.not.eql item1.updated_at
-              items[1].updated_at.should.not.eql item2.updated_at
+              items[0].updated_at.should.eql item1.updated_at.toISOString()
+              items[1].updated_at.should.eql item2.updated_at.toISOString()
               done()
 
       describe 'hooks', ->
@@ -941,7 +943,7 @@ describe 'Model Tests', ->
         item2 = identifier: '21321', range_key: 'abcdef', foo: 'bar', baz: 'quk'
         item3 = identifier: '12312', range_key: 'fedcba', foo: 'bar', baz: 'qak'
         item4 = identifier: '21321', range_key: 'fedcba', foo: 'bar', baz: 'quk'
-        params = 
+        params =
           names:
             '#identifier': 'identifier'
             '#baz': 'baz'
